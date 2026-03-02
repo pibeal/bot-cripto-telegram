@@ -1,17 +1,11 @@
 import os
 import logging
+import asyncio
 import requests
-import threading
-from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# ==============================
-# CONFIG
-# ==============================
-
 TOKEN = os.getenv("BOT_TOKEN")
-PORT = int(os.environ.get("PORT", 8080))
 
 if not TOKEN:
     raise ValueError("No se encontró BOT_TOKEN")
@@ -22,86 +16,60 @@ logger = logging.getLogger(__name__)
 usuarios_suscritos = set()
 ultimo_precio_btc = None
 
-# ==============================
-# FLASK SERVER (para Railway)
-# ==============================
-
-app_flask = Flask(__name__)
-
-@app_flask.route("/")
-def home():
-    return "Bot funcionando 🚀"
-
-def run_flask():
-    app_flask.run(host="0.0.0.0", port=PORT)
-
-# ==============================
-# FUNCIONES CRIPTO
-# ==============================
-
 def obtener_precio():
     url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
-    response = requests.get(url)
+    response = requests.get(url, timeout=10)
     return response.json()["bitcoin"]["usd"]
 
-# ==============================
-# COMANDOS
-# ==============================
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🚀 Bot Cripto con Alertas\n\n"
-        "/btc\n"
-        "/subscribe\n"
-        "/unsubscribe"
-    )
+    await update.message.reply_text("🚀 Bot activo")
 
 async def btc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     precio = obtener_precio()
-    await update.message.reply_text(f"₿ Bitcoin: ${precio}")
+    await update.message.reply_text(f"₿ BTC: ${precio}")
 
 async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     usuarios_suscritos.add(update.effective_chat.id)
     await update.message.reply_text("✅ Suscrito a alertas")
 
-async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    usuarios_suscritos.discard(update.effective_chat.id)
-    await update.message.reply_text("❌ Desuscrito")
-
 async def verificar_precio(context: ContextTypes.DEFAULT_TYPE):
     global ultimo_precio_btc
 
-    precio_actual = obtener_precio()
+    try:
+        precio_actual = obtener_precio()
 
-    if ultimo_precio_btc is None:
-        ultimo_precio_btc = precio_actual
-        return
+        if ultimo_precio_btc is None:
+            ultimo_precio_btc = precio_actual
+            return
 
-    variacion = ((precio_actual - ultimo_precio_btc) / ultimo_precio_btc) * 100
+        variacion = ((precio_actual - ultimo_precio_btc) / ultimo_precio_btc) * 100
 
-    if abs(variacion) >= 0.5:
-        mensaje = f"🚨 BTC cambió {variacion:.2f}%\nPrecio: ${precio_actual}"
-        for user_id in usuarios_suscritos:
-            await context.bot.send_message(chat_id=user_id, text=mensaje)
+        if abs(variacion) >= 0.5:
+            mensaje = f"🚨 BTC cambió {variacion:.2f}%\nPrecio: ${precio_actual}"
 
-        ultimo_precio_btc = precio_actual
+            for user_id in usuarios_suscritos:
+                await context.bot.send_message(chat_id=user_id, text=mensaje)
 
-# ==============================
-# MAIN
-# ==============================
+            ultimo_precio_btc = precio_actual
 
-def run_bot():
+    except Exception as e:
+        logger.error(f"Error en alerta: {e}")
+
+async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("btc", btc))
     app.add_handler(CommandHandler("subscribe", subscribe))
-    app.add_handler(CommandHandler("unsubscribe", unsubscribe))
 
     app.job_queue.run_repeating(verificar_precio, interval=300, first=10)
 
-    app.run_polling()
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
-    threading.Thread(target=run_bot).start()
-    run_flask()
+    asyncio.run(main())
