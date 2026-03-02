@@ -1,0 +1,3 @@
+https://api.telegram.org/botTU_TOKEN_AQUI/getMe
+8771204299:AAFe_mjO-J6K2Xpzq8-ST5NY9yZHRWq8DW8
+https://api.telegram.org/botTU_TOKEN_AQUI/getMe
