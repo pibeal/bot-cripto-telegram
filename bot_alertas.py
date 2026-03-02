@@ -1,4 +1,4 @@
- import os
+import os
 import logging
 import requests
 from telegram import Update
@@ -11,9 +11,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 TOKEN = os.getenv("BOT_TOKEN")
 
 if not TOKEN:
-    raise ValueError("No se encontró el BOT_TOKEN en las variables de entorno")
+    raise ValueError("No se encontró BOT_TOKEN en las variables de entorno")
 
-# Logging para Railway
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
@@ -61,4 +60,4 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
-    main() 
+    main()
