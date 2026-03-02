@@ -2,7 +2,11 @@ import os
 import logging
 import requests
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+)
 
 # ==============================
 # CONFIGURACIÓN
@@ -21,7 +25,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ==============================
-# FUNCION PARA OBTENER PRECIO
+# VARIABLES GLOBALES
+# ==============================
+
+usuarios_suscritos = set()
+ultimo_precio_btc = None
+
+# ==============================
+# FUNCIONES
 # ==============================
 
 def obtener_precio(coin_id):
@@ -36,47 +47,61 @@ def obtener_precio(coin_id):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mensaje = (
-        "🚀 *Bot de Alertas Cripto Activo*\n\n"
-        "Consulta precios en tiempo real:\n"
-        "/btc - Precio de Bitcoin\n"
-        "/eth - Precio de Ethereum\n"
-        "/sol - Precio de Solana\n"
-        "/help - Ver comandos"
-    )
-    await update.message.reply_text(mensaje, parse_mode="Markdown")
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    mensaje = (
-        "📌 *Comandos disponibles:*\n\n"
-        "/btc → Precio actual de Bitcoin\n"
-        "/eth → Precio actual de Ethereum\n"
-        "/sol → Precio actual de Solana"
+        "🚀 *Bot Cripto con Alertas*\n\n"
+        "/btc - Precio actual BTC\n"
+        "/subscribe - Activar alertas\n"
+        "/unsubscribe - Desactivar alertas"
     )
     await update.message.reply_text(mensaje, parse_mode="Markdown")
 
 async def btc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         precio = obtener_precio("bitcoin")
-        await update.message.reply_text(f"₿ *Bitcoin*: ${precio}", parse_mode="Markdown")
-    except Exception as e:
-        logger.error(e)
-        await update.message.reply_text("❌ Error obteniendo precio de BTC")
+        await update.message.reply_text(f"₿ Bitcoin: ${precio}")
+    except:
+        await update.message.reply_text("❌ Error obteniendo precio")
 
-async def eth(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        precio = obtener_precio("ethereum")
-        await update.message.reply_text(f"Ξ *Ethereum*: ${precio}", parse_mode="Markdown")
-    except Exception as e:
-        logger.error(e)
-        await update.message.reply_text("❌ Error obteniendo precio de ETH")
+async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_chat.id
+    usuarios_suscritos.add(user_id)
+    await update.message.reply_text("✅ Te has suscrito a alertas automáticas.")
 
-async def sol(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_chat.id
+    usuarios_suscritos.discard(user_id)
+    await update.message.reply_text("❌ Te has desuscrito de las alertas.")
+
+# ==============================
+# ALERTA AUTOMÁTICA
+# ==============================
+
+async def verificar_precio(context: ContextTypes.DEFAULT_TYPE):
+    global ultimo_precio_btc
+
     try:
-        precio = obtener_precio("solana")
-        await update.message.reply_text(f"◎ *Solana*: ${precio}", parse_mode="Markdown")
+        precio_actual = obtener_precio("bitcoin")
+
+        if ultimo_precio_btc is None:
+            ultimo_precio_btc = precio_actual
+            return
+
+        variacion = ((precio_actual - ultimo_precio_btc) / ultimo_precio_btc) * 100
+
+        # Solo alerta si cambia más de 0.5%
+        if abs(variacion) >= 0.5:
+            mensaje = (
+                f"🚨 Alerta BTC 🚨\n\n"
+                f"Precio actual: ${precio_actual}\n"
+                f"Variación: {variacion:.2f}%"
+            )
+
+            for user_id in usuarios_suscritos:
+                await context.bot.send_message(chat_id=user_id, text=mensaje)
+
+            ultimo_precio_btc = precio_actual
+
     except Exception as e:
-        logger.error(e)
-        await update.message.reply_text("❌ Error obteniendo precio de SOL")
+        logger.error(f"Error en verificación automática: {e}")
 
 # ==============================
 # MAIN
@@ -86,12 +111,15 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("btc", btc))
-    app.add_handler(CommandHandler("eth", eth))
-    app.add_handler(CommandHandler("sol", sol))
+    app.add_handler(CommandHandler("subscribe", subscribe))
+    app.add_handler(CommandHandler("unsubscribe", unsubscribe))
 
-    logger.info("Bot iniciado correctamente...")
+    # Ejecutar cada 5 minutos (300 segundos)
+    job_queue = app.job_queue
+    job_queue.run_repeating(verificar_precio, interval=300, first=10)
+
+    logger.info("Bot con alertas automáticas iniciado...")
     app.run_polling()
 
 if __name__ == "__main__":
