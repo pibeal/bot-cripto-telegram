@@ -1,82 +1,64 @@
+ import os
+import logging
 import requests
-import yfinance as yf
-import time
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-import os
-TOKEN = os.getenv("8771204299:AAFe_mjO-J6K2Xpzq8-ST5NY9yZHRWq8DW8")
+# ==============================
+# CONFIGURACIÓN
+# ==============================
 
-alertas = []
+TOKEN = os.getenv("BOT_TOKEN")
 
-def enviar_mensaje(chat_id, mensaje):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    data = {"chat_id": chat_id, "text": mensaje}
-    requests.post(url, data=data)
+if not TOKEN:
+    raise ValueError("No se encontró el BOT_TOKEN en las variables de entorno")
 
-def obtener_precio(simbolo):
+# Logging para Railway
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+
+logger = logging.getLogger(__name__)
+
+# ==============================
+# COMANDOS
+# ==============================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🤖 Bot de Alertas Cripto activo!\n\n"
+        "Usa /price para ver el precio actual de BTC."
+    )
+
+async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        ticker = yf.Ticker(simbolo)
-        df = ticker.history(period="1d")
-        if df.empty:
-            return None
-        return df["Close"].iloc[-1]
-    except:
-        return None
+        url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+        response = requests.get(url)
+        data = response.json()
 
-print("🤖 Bot de alertas iniciado...")
+        btc_price = data["bitcoin"]["usd"]
 
-update_offset = 0
+        await update.message.reply_text(
+            f"💰 Precio actual de BTC: ${btc_price}"
+        )
 
-while True:
-    # Revisar mensajes nuevos
-    url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
-    params = {"timeout": 10, "offset": update_offset}
-    response = requests.get(url, params=params).json()
+    except Exception as e:
+        logger.error(f"Error obteniendo precio: {e}")
+        await update.message.reply_text("❌ Error obteniendo el precio.")
 
-    if "result" in response:
-        for update in response["result"]:
-            update_offset = update["update_id"] + 1
+# ==============================
+# MAIN
+# ==============================
 
-            if "message" in update and "text" in update["message"]:
-                chat_id = update["message"]["chat"]["id"]
-                texto = update["message"]["text"].lower()
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
 
-                # COMANDO PRECIO
-                if texto.startswith("/precio"):
-                    partes = texto.split()
-                    if len(partes) == 2:
-                        simbolo = partes[1].upper() + "-USD"
-                        precio = obtener_precio(simbolo)
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("price", price))
 
-                        if precio:
-                            enviar_mensaje(chat_id, f"💰 {simbolo}: ${precio:.2f}")
-                        else:
-                            enviar_mensaje(chat_id, "❌ No encontrada")
+    logger.info("Bot iniciado correctamente...")
+    app.run_polling()
 
-                # COMANDO ALERTA
-                if texto.startswith("/alerta"):
-                    partes = texto.split()
-                    if len(partes) == 3:
-                        simbolo = partes[1].upper() + "-USD"
-                        nivel = float(partes[2])
-
-                        alertas.append({
-                            "chat_id": chat_id,
-                            "simbolo": simbolo,
-                            "nivel": nivel
-                        })
-
-                        enviar_mensaje(chat_id, f"🔔 Alerta creada para {simbolo} en ${nivel}")
-
-    # Revisar alertas activas
-    for alerta in alertas[:]:
-        precio_actual = obtener_precio(alerta["simbolo"])
-        if precio_actual:
-
-            if precio_actual >= alerta["nivel"]:
-                enviar_mensaje(
-                    alerta["chat_id"],
-                    f"🚨 {alerta['simbolo']} llegó a ${precio_actual:.2f}"
-                )
-                alertas.remove(alerta)
-
-    time.sleep(30)
+if __name__ == "__main__":
+    main() 
