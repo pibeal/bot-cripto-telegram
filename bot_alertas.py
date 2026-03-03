@@ -1,6 +1,5 @@
 import os
 import logging
-import asyncio
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
@@ -22,7 +21,7 @@ def obtener_precio():
     return response.json()["bitcoin"]["usd"]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🚀 Bot activo")
+    await update.message.reply_text("🚀 Bot activo\n\n/btc\n/subscribe")
 
 async def btc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     precio = obtener_precio()
@@ -46,16 +45,15 @@ async def verificar_precio(context: ContextTypes.DEFAULT_TYPE):
 
         if abs(variacion) >= 0.5:
             mensaje = f"🚨 BTC cambió {variacion:.2f}%\nPrecio: ${precio_actual}"
-
             for user_id in usuarios_suscritos:
                 await context.bot.send_message(chat_id=user_id, text=mensaje)
 
             ultimo_precio_btc = precio_actual
 
     except Exception as e:
-        logger.error(f"Error en alerta: {e}")
+        logger.error(e)
 
-async def main():
+def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -64,12 +62,8 @@ async def main():
 
     app.job_queue.run_repeating(verificar_precio, interval=300, first=10)
 
-    await app.initialize()
-    await app.start()
-    await app.updater.start_polling()
-
-    while True:
-        await asyncio.sleep(3600)
+    logger.info("Bot Worker iniciado correctamente...")
+    app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
