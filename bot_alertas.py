@@ -13,7 +13,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Messa
 # Configuración usando variables de entorno
 # -------------------------------
 TOKEN = os.getenv("8771204299:AAF-H6RWaRqsR7Yr9lyHrfmPk6-YHS14F0U")      # Token de Telegram
-CHAT_ID = os.getenv("8521853388")  # ID del chat de Telegram
+CHAT_ID = os.getenv("8521853388")  # Chat ID
 INTERVALO = 300                 # 5 minutos
 CAMBIO_MINIMO = 5.0
 CSV_FILE = "historial_criptos.csv"
@@ -26,7 +26,7 @@ CRIPTOS = [
     "MATIC", "NEAR", "ATOM", "ALGO", "FTM"
 ]
 
-ultimos_cambios = {}  # Para /top
+ultimos_cambios = {}
 
 # -------------------------------
 # Funciones
@@ -38,7 +38,7 @@ def obtener_precio(symbol):
         data = resp.json()
         return data[symbol.lower()]["usd"]
     except Exception as e:
-        print(f"Error obteniendo precio de {symbol}: {e}")
+        print(f"[ERROR] Obtener precio {symbol}: {e}")
         return None
 
 def guardar_historial(crypto, precio, cambio_pct):
@@ -49,7 +49,7 @@ def guardar_historial(crypto, precio, cambio_pct):
             writer = csv.writer(f)
             writer.writerow(fila)
     except Exception as e:
-        print("Error guardando CSV:", e)
+        print("[ERROR] Guardar historial CSV:", e)
 
 # -------------------------------
 # Bucle de alertas
@@ -92,9 +92,9 @@ async def alerta_loop(app):
 
             try:
                 await app.bot.send_message(chat_id=CHAT_ID, text=mensaje_resumen)
-                print("Alerta enviada:\n", mensaje_resumen)
+                print("[INFO] Alerta enviada")
             except Exception as e:
-                print("Error enviando mensaje:", e)
+                print("[ERROR] Enviar alerta:", e)
 
         await asyncio.sleep(INTERVALO)
 
@@ -103,23 +103,21 @@ async def alerta_loop(app):
 # -------------------------------
 async def enviar_graficas_avanzadas(app):
     if not os.path.exists(CSV_FILE):
-        print("No hay historial para graficar.")
+        print("[INFO] No hay historial para graficar.")
         return
 
     df = pd.read_csv(CSV_FILE, parse_dates=["FechaHora"])
     if df.empty:
-        print("CSV vacío, no hay datos para graficar.")
+        print("[INFO] CSV vacío.")
         return
 
     volatilidad = df.groupby("Cripto")["CambioPorc"].apply(lambda x: x.abs().sum())
     top5_volatil = volatilidad.sort_values(ascending=False).head(5).index.tolist()
-
     if not top5_volatil:
-        print("No hay cripto con volatilidad suficiente.")
+        print("[INFO] No hay cripto con volatilidad suficiente.")
         return
 
     fig, ax = plt.subplots(figsize=(12, 6))
-
     for crypto in top5_volatil:
         df_crypto = df[df["Cripto"] == crypto]
         precios = df_crypto["PrecioUSD"]
@@ -143,9 +141,9 @@ async def enviar_graficas_avanzadas(app):
     try:
         with open(filename, "rb") as f:
             await app.bot.send_photo(chat_id=CHAT_ID, photo=InputFile(f))
-        print("Gráfico avanzado diario enviado.")
+        print("[INFO] Gráfico diario enviado")
     except Exception as e:
-        print("Error enviando gráfico:", e)
+        print("[ERROR] Enviar gráfico:", e)
     finally:
         if os.path.exists(filename):
             os.remove(filename)
@@ -153,7 +151,7 @@ async def enviar_graficas_avanzadas(app):
 async def tarea_graficas_diarias(app):
     while True:
         await enviar_graficas_avanzadas(app)
-        await asyncio.sleep(24 * 60 * 60)  # 24h
+        await asyncio.sleep(24*60*60)  # 24h
 
 # -------------------------------
 # Comandos de Telegram
@@ -166,7 +164,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Comandos:\n"
         "/start - Inicia el bot\n"
         "/ayuda - Muestra ayuda\n"
-        "/top - Top 3 subidas/bajadas del último intervalo\n"
+        "/top - Top 3 subidas/bajadas\n"
         "Escribe el símbolo de una cripto para consultar su precio (ej: BTC)"
     )
 
@@ -196,7 +194,7 @@ async def consultar_precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Cripto no reconocida. Escribe el símbolo, p.ej., BTC")
 
 # -------------------------------
-# Crear aplicación
+# Crear aplicación y arrancar
 # -------------------------------
 def crear_aplicacion():
     app = ApplicationBuilder().token(TOKEN).build()
@@ -208,15 +206,20 @@ def crear_aplicacion():
     app.create_task(tarea_graficas_diarias(app))
     return app
 
-# -------------------------------
-# Ejecutar bot
-# -------------------------------
 async def main():
     if not os.path.exists(CSV_FILE):
         with open(CSV_FILE, "w", newline='') as f:
             writer = csv.writer(f)
             writer.writerow(["FechaHora", "Cripto", "PrecioUSD", "CambioPorc"])
     app = crear_aplicacion()
+    
+    # 🔹 Mensaje de prueba al iniciar
+    try:
+        await app.bot.send_message(chat_id=CHAT_ID, text="✅ Bot conectado y listo para alertas")
+        print("[INFO] Bot conectado correctamente al chat")
+    except Exception as e:
+        print("[ERROR] No se pudo enviar mensaje de prueba:", e)
+    
     await app.run_polling()
 
 if __name__ == "__main__":
