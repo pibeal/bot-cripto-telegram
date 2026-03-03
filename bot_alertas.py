@@ -29,8 +29,11 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     usuarios_suscritos.add(update.effective_chat.id)
     await update.message.reply_text("✅ Suscrito a alertas")
 
-async def alerta_loop(app):
+async def alerta_loop(application):
     global ultimo_precio_btc
+
+    await application.initialize()
+    await application.start()
 
     while True:
         try:
@@ -43,29 +46,28 @@ async def alerta_loop(app):
 
                 if abs(variacion) >= 0.5:
                     mensaje = f"🚨 BTC cambió {variacion:.2f}%\nPrecio: ${precio_actual}"
-
                     for user_id in usuarios_suscritos:
-                        await app.bot.send_message(chat_id=user_id, text=mensaje)
+                        await application.bot.send_message(chat_id=user_id, text=mensaje)
 
                     ultimo_precio_btc = precio_actual
 
         except Exception as e:
             logger.error(e)
 
-        await asyncio.sleep(300)  # 5 minutos
+        await asyncio.sleep(300)
 
-async def main():
+def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("btc", btc))
     app.add_handler(CommandHandler("subscribe", subscribe))
 
-    print("Bot con alertas iniciado")
+    loop = asyncio.get_event_loop()
+    loop.create_task(alerta_loop(app))
 
-    asyncio.create_task(alerta_loop(app))
-
-    await app.run_polling()
+    logger.info("Bot iniciado correctamente")
+    app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
