@@ -12,7 +12,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Messa
 # -------------------------------
 # Configuración usando variables de entorno
 # -------------------------------
-TOKEN = os.getenv("8771204299:AAFe_mjO-J6K2Xpzq8-ST5NY9yZHRWq8DW8")      # Token de Telegram
+TOKEN = os.getenv("8771204299:AAF-H6RWaRqsR7Yr9lyHrfmPk6-YHS14F0U")      # Token de Telegram
 CHAT_ID = os.getenv("8521853388")  # ID del chat de Telegram
 INTERVALO = 300                 # 5 minutos
 CAMBIO_MINIMO = 5.0
