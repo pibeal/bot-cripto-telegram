@@ -1,226 +1,210 @@
-import asyncio
 import requests
-import csv
+import json
 import os
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from datetime import datetime
-from telegram import Update, InputFile
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+import time
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# -------------------------------
-# Configuración usando variables de entorno
-# -------------------------------
-TOKEN = os.getenv("8771204299:AAF-H6RWaRqsR7Yr9lyHrfmPk6-YHS14F0U")      # Token de Telegram
-CHAT_ID = os.getenv("8521853388")  # Chat ID
-INTERVALO = 300                 # 5 minutos
-CAMBIO_MINIMO = 5.0
-CSV_FILE = "historial_criptos.csv"
+# ==============================
+# TOKEN DESDE VARIABLE DE ENTORNO
+# ==============================
 
-# Criptos más populares
-CRIPTOS = [
-    "BTC", "ETH", "USDT", "BNB", "XRP",
-    "SOL", "USDC", "DOGE", "TRX", "ADA",
-    "LINK", "XLM", "AVAX", "LTC", "BCH",
-    "MATIC", "NEAR", "ATOM", "ALGO", "FTM"
-]
+TOKEN = os.getenv("8771204299:AAF-H6RWaRqsR7Yr9lyHrfmPk6-YHS14F0U")
 
-ultimos_cambios = {}
+# ==============================
+# ARCHIVO DE ALERTAS
+# ==============================
 
-# -------------------------------
-# Funciones
-# -------------------------------
-def obtener_precio(symbol):
+ARCHIVO_ALERTAS = "alertas.json"
+
+def cargar_alertas():
     try:
-        url = f"https://api.coingecko.com/api/v3/simple/price?ids={symbol.lower()}&vs_currencies=usd"
-        resp = requests.get(url, timeout=10)
-        data = resp.json()
-        return data[symbol.lower()]["usd"]
-    except Exception as e:
-        print(f"[ERROR] Obtener precio {symbol}: {e}")
+        with open(ARCHIVO_ALERTAS, "r") as f:
+            return json.load(f)
+    except:
+        return {}
+
+def guardar_alertas(data):
+    with open(ARCHIVO_ALERTAS, "w") as f:
+        json.dump(data, f)
+
+alertas = cargar_alertas()
+
+# ==============================
+# OBTENER PRECIO CRYPTO
+# ==============================
+
+def obtener_precio(cripto):
+
+    ids = {
+        "btc": "bitcoin",
+        "eth": "ethereum",
+        "bnb": "binancecoin",
+        "xrp": "ripple",
+        "ada": "cardano",
+        "sol": "solana",
+        "doge": "dogecoin",
+        "dot": "polkadot",
+        "matic": "polygon",
+        "ltc": "litecoin"
+    }
+
+    cripto = cripto.lower()
+
+    if cripto not in ids:
         return None
 
-def guardar_historial(crypto, precio, cambio_pct):
-    ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    fila = [ahora, crypto, f"{precio:.2f}", f"{cambio_pct:+.2f}"]
-    try:
-        with open(CSV_FILE, "a", newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(fila)
-    except Exception as e:
-        print("[ERROR] Guardar historial CSV:", e)
+    url = f"https://api.coingecko.com/api/v3/simple/price?ids={ids[cripto]}&vs_currencies=usd"
 
-# -------------------------------
-# Bucle de alertas
-# -------------------------------
-async def alerta_loop(app):
-    ultimos_precios = {}
-    global ultimos_cambios
-    while True:
-        mensajes = []
-        cambios = {}
+    r = requests.get(url)
+    data = r.json()
 
-        for crypto in CRIPTOS:
-            precio = obtener_precio(crypto)
-            if precio is None:
-                continue
+    return data[ids[cripto]]["usd"]
 
-            cambio_pct = 0.0
-            if crypto in ultimos_precios:
-                cambio_pct = ((precio - ultimos_precios[crypto]) / ultimos_precios[crypto]) * 100
-                if abs(cambio_pct) >= CAMBIO_MINIMO:
-                    direccion = "📈 subió" if cambio_pct > 0 else "📉 bajó"
-                    mensajes.append(f"{crypto} {direccion} a ${precio:.2f} ({cambio_pct:+.2f}%)")
-                    cambios[crypto] = cambio_pct
+# ==============================
+# COMANDO START
+# ==============================
 
-            ultimos_precios[crypto] = precio
-            guardar_historial(crypto, precio, cambio_pct)
-
-        ultimos_cambios = cambios
-
-        if mensajes:
-            mensaje_resumen = "\n".join(mensajes)
-
-            subidas = sorted([c for c in cambios.items() if c[1] > 0], key=lambda x: x[1], reverse=True)[:3]
-            bajadas = sorted([c for c in cambios.items() if c[1] < 0], key=lambda x: x[1])[:3]
-
-            if subidas:
-                mensaje_resumen += "\n\n🔥 Top 3 subidas:\n" + "\n".join([f"{c[0]} ({c[1]:+.2f}%)" for c in subidas])
-            if bajadas:
-                mensaje_resumen += "\n\n❄️ Top 3 bajadas:\n" + "\n".join([f"{c[0]} ({c[1]:+.2f}%)" for c in bajadas])
-
-            try:
-                await app.bot.send_message(chat_id=CHAT_ID, text=mensaje_resumen)
-                print("[INFO] Alerta enviada")
-            except Exception as e:
-                print("[ERROR] Enviar alerta:", e)
-
-        await asyncio.sleep(INTERVALO)
-
-# -------------------------------
-# Gráficas avanzadas diarias
-# -------------------------------
-async def enviar_graficas_avanzadas(app):
-    if not os.path.exists(CSV_FILE):
-        print("[INFO] No hay historial para graficar.")
-        return
-
-    df = pd.read_csv(CSV_FILE, parse_dates=["FechaHora"])
-    if df.empty:
-        print("[INFO] CSV vacío.")
-        return
-
-    volatilidad = df.groupby("Cripto")["CambioPorc"].apply(lambda x: x.abs().sum())
-    top5_volatil = volatilidad.sort_values(ascending=False).head(5).index.tolist()
-    if not top5_volatil:
-        print("[INFO] No hay cripto con volatilidad suficiente.")
-        return
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-    for crypto in top5_volatil:
-        df_crypto = df[df["Cripto"] == crypto]
-        precios = df_crypto["PrecioUSD"]
-        cambios = df_crypto["CambioPorc"]
-        color = "green" if cambios.iloc[-1] > 0 else "red"
-        ax.plot(df_crypto["FechaHora"], precios, label=f"{crypto} ({cambios.iloc[-1]:+.2f}%)", color=color)
-
-    ax.set_xlabel("FechaHora")
-    ax.set_ylabel("Precio USD")
-    ax.set_title("Top 5 Criptos más volátiles del día")
-    ax.legend()
-    plt.xticks(rotation=45)
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    plt.tight_layout()
-    plt.grid(True)
-
-    filename = "graficas_avanzadas.png"
-    plt.savefig(filename)
-    plt.close()
-
-    try:
-        with open(filename, "rb") as f:
-            await app.bot.send_photo(chat_id=CHAT_ID, photo=InputFile(f))
-        print("[INFO] Gráfico diario enviado")
-    except Exception as e:
-        print("[ERROR] Enviar gráfico:", e)
-    finally:
-        if os.path.exists(filename):
-            os.remove(filename)
-
-async def tarea_graficas_diarias(app):
-    while True:
-        await enviar_graficas_avanzadas(app)
-        await asyncio.sleep(24*60*60)  # 24h
-
-# -------------------------------
-# Comandos de Telegram
-# -------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Bot de alertas de criptos iniciado correctamente!")
-
-async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
+        "🤖 Bot de alertas cripto activo\n\n"
         "Comandos:\n"
-        "/start - Inicia el bot\n"
-        "/ayuda - Muestra ayuda\n"
-        "/top - Top 3 subidas/bajadas\n"
-        "Escribe el símbolo de una cripto para consultar su precio (ej: BTC)"
+        "/precio btc\n"
+        "/alerta btc 70000\n"
+        "/misalertas\n"
+        "/eliminaralertas"
     )
 
-async def top(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global ultimos_cambios
-    if not ultimos_cambios:
-        await update.message.reply_text("Aún no hay datos de cambios recientes.")
+# ==============================
+# VER PRECIO
+# ==============================
+
+async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if len(context.args) == 0:
+        await update.message.reply_text("Usa: /precio btc")
         return
-    subidas = sorted([c for c in ultimos_cambios.items() if c[1] > 0], key=lambda x: x[1], reverse=True)[:3]
-    bajadas = sorted([c for c in ultimos_cambios.items() if c[1] < 0], key=lambda x: x[1])[:3]
-    mensaje = ""
-    if subidas:
-        mensaje += "🔥 Top 3 subidas:\n" + "\n".join([f"{c[0]} ({c[1]:+.2f}%)" for c in subidas]) + "\n"
-    if bajadas:
-        mensaje += "❄️ Top 3 bajadas:\n" + "\n".join([f"{c[0]} ({c[1]:+.2f}%)" for c in bajadas])
-    await update.message.reply_text(mensaje)
 
-async def consultar_precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = update.message.text.upper()
-    if msg in CRIPTOS:
-        precio = obtener_precio(msg)
-        if precio:
-            await update.message.reply_text(f"💰 {msg} ahora está en ${precio:.2f}")
-        else:
-            await update.message.reply_text(f"No se pudo obtener el precio de {msg}")
-    else:
-        await update.message.reply_text("Cripto no reconocida. Escribe el símbolo, p.ej., BTC")
+    cripto = context.args[0]
 
-# -------------------------------
-# Crear aplicación y arrancar
-# -------------------------------
-def crear_aplicacion():
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("ayuda", ayuda))
-    app.add_handler(CommandHandler("top", top))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, consultar_precio))
-    app.create_task(alerta_loop(app))
-    app.create_task(tarea_graficas_diarias(app))
-    return app
+    precio = obtener_precio(cripto)
 
-async def main():
-    if not os.path.exists(CSV_FILE):
-        with open(CSV_FILE, "w", newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(["FechaHora", "Cripto", "PrecioUSD", "CambioPorc"])
-    app = crear_aplicacion()
-    
-    # 🔹 Mensaje de prueba al iniciar
+    if precio is None:
+        await update.message.reply_text("Cripto no soportada")
+        return
+
+    await update.message.reply_text(f"💰 {cripto.upper()} = ${precio}")
+
+# ==============================
+# CREAR ALERTA
+# ==============================
+
+async def alerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     try:
-        await app.bot.send_message(chat_id=CHAT_ID, text="✅ Bot conectado y listo para alertas")
-        print("[INFO] Bot conectado correctamente al chat")
-    except Exception as e:
-        print("[ERROR] No se pudo enviar mensaje de prueba:", e)
-    
-    await app.run_polling()
+        cripto = context.args[0]
+        objetivo = float(context.args[1])
+    except:
+        await update.message.reply_text("Usa: /alerta btc 70000")
+        return
+
+    user = str(update.message.chat_id)
+
+    if user not in alertas:
+        alertas[user] = []
+
+    alertas[user].append({
+        "cripto": cripto,
+        "precio": objetivo
+    })
+
+    guardar_alertas(alertas)
+
+    await update.message.reply_text(
+        f"🚨 Alerta creada\n{cripto.upper()} -> ${objetivo}"
+    )
+
+# ==============================
+# VER ALERTAS
+# ==============================
+
+async def misalertas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = str(update.message.chat_id)
+
+    if user not in alertas or len(alertas[user]) == 0:
+        await update.message.reply_text("No tienes alertas")
+        return
+
+    texto = "🚨 Tus alertas:\n\n"
+
+    for a in alertas[user]:
+        texto += f"{a['cripto'].upper()} -> ${a['precio']}\n"
+
+    await update.message.reply_text(texto)
+
+# ==============================
+# ELIMINAR ALERTAS
+# ==============================
+
+async def eliminaralertas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = str(update.message.chat_id)
+
+    alertas[user] = []
+
+    guardar_alertas(alertas)
+
+    await update.message.reply_text("🗑 Alertas eliminadas")
+
+# ==============================
+# VERIFICAR ALERTAS
+# ==============================
+
+async def verificar_alertas(app):
+
+    while True:
+
+        for user in alertas:
+
+            for alerta in alertas[user]:
+
+                precio_actual = obtener_precio(alerta["cripto"])
+
+                if precio_actual >= alerta["precio"]:
+
+                    await app.bot.send_message(
+                        chat_id=user,
+                        text=f"🚨 ALERTA\n{alerta['cripto'].upper()} llegó a ${precio_actual}"
+                    )
+
+        await asyncio.sleep(60)
+
+# ==============================
+# MAIN
+# ==============================
+
+async def iniciar_verificador(app):
+    while True:
+        await verificar_alertas(app)
+
+def main():
+
+    if TOKEN is None:
+        print("ERROR: TOKEN no configurado")
+        return
+
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("precio", precio))
+    app.add_handler(CommandHandler("alerta", alerta))
+    app.add_handler(CommandHandler("misalertas", misalertas))
+    app.add_handler(CommandHandler("eliminaralertas", eliminaralertas))
+
+    print("Bot funcionando...")
+
+    app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
