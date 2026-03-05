@@ -9,7 +9,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 # TOKEN DESDE VARIABLE DE ENTORNO
 # ==============================
 
-TOKEN = os.getenv("8771204299:AAF-H6RWaRqsR7Yr9lyHrfmPk6-YHS14F0U")
+TOKEN = os.getenv("TOKEN") or "8771204299:AAF-H6RWaRqsR7Yr9lyHrfmPk6-YHS14F0U"
 
 # ==============================
 # ARCHIVO DE ALERTAS
