@@ -1,83 +1,114 @@
-import requests
-import json
 import os
-import time
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import sqlite3
+import yfinance as yf
+import matplotlib.pyplot as plt
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+)
 
-# ==============================
-# TOKEN DESDE VARIABLE DE ENTORNO
-# ==============================
+TOKEN = os.getenv("8718683908:AAFHR0BJ4mzRZw450TUciw_-jrxPb8VVMK4")
 
-TOKEN = os.getenv("TOKEN") or "8771204299:AAF-H6RWaRqsR7Yr9lyHrfmPk6-YHS14F0U"
+# =========================
+# BASE DE DATOS
+# =========================
 
-# ==============================
-# ARCHIVO DE ALERTAS
-# ==============================
+conn = sqlite3.connect("alertas.db", check_same_thread=False)
+cursor = conn.cursor()
 
-ARCHIVO_ALERTAS = "alertas.json"
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS alertas(
+user_id INTEGER,
+crypto TEXT,
+precio REAL
+)
+""")
 
-def cargar_alertas():
-    try:
-        with open(ARCHIVO_ALERTAS, "r") as f:
-            return json.load(f)
-    except:
-        return {}
+conn.commit()
 
-def guardar_alertas(data):
-    with open(ARCHIVO_ALERTAS, "w") as f:
-        json.dump(data, f)
+# =========================
+# PRECIOS
+# =========================
 
-alertas = cargar_alertas()
+def obtener_precio(crypto):
 
-# ==============================
-# OBTENER PRECIO CRYPTO
-# ==============================
-
-def obtener_precio(cripto):
-
-    ids = {
-        "btc": "bitcoin",
-        "eth": "ethereum",
-        "bnb": "binancecoin",
-        "xrp": "ripple",
-        "ada": "cardano",
-        "sol": "solana",
-        "doge": "dogecoin",
-        "dot": "polkadot",
-        "matic": "polygon",
-        "ltc": "litecoin"
+    pares = {
+        "btc": "BTC-USD",
+        "eth": "ETH-USD",
+        "sol": "SOL-USD"
     }
 
-    cripto = cripto.lower()
+    ticker = pares.get(crypto.lower())
 
-    if cripto not in ids:
+    if not ticker:
         return None
 
-    url = f"https://api.coingecko.com/api/v3/simple/price?ids={ids[cripto]}&vs_currencies=usd"
+    data = yf.Ticker(ticker)
+    precio = data.history(period="1d")["Close"].iloc[-1]
 
-    r = requests.get(url)
-    data = r.json()
+    return round(precio,2)
 
-    return data[ids[cripto]]["usd"]
-
-# ==============================
-# COMANDO START
-# ==============================
+# =========================
+# MENU
+# =========================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    keyboard = [
+        [InlineKeyboardButton("💰 Precio BTC", callback_data="btc")],
+        [InlineKeyboardButton("💰 Precio ETH", callback_data="eth")],
+        [InlineKeyboardButton("⚡ Precio SOL", callback_data="sol")],
+        [InlineKeyboardButton("📊 Top Criptos", callback_data="top")]
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     await update.message.reply_text(
-        "🤖 Bot de alertas cripto activo\n\n"
-        "Comandos:\n"
-        "/precio btc\n"
-        "/alerta btc 70000\n"
-        "/misalertas\n"
-        "/eliminaralertas"
+        "🤖 Bot Cripto Ultra Pro\n\nSelecciona una opción:",
+        reply_markup=reply_markup
     )
 
-# ==============================
-# VER PRECIO
-# ==============================
+# =========================
+# BOTONES
+# =========================
+
+async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    crypto = query.data
+
+    if crypto in ["btc","eth","sol"]:
+
+        precio = obtener_precio(crypto)
+
+        await query.edit_message_text(
+            f"💰 Precio de {crypto.upper()}:\n\n${precio}"
+        )
+
+    if crypto == "top":
+
+        btc = obtener_precio("btc")
+        eth = obtener_precio("eth")
+        sol = obtener_precio("sol")
+
+        mensaje = f"""
+📊 TOP CRIPTOS
+
+BTC: ${btc}
+ETH: ${eth}
+SOL: ${sol}
+"""
+
+        await query.edit_message_text(mensaje)
+
+# =========================
+# COMANDO PRECIO
+# =========================
 
 async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -85,124 +116,139 @@ async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Usa: /precio btc")
         return
 
-    cripto = context.args[0]
+    crypto = context.args[0]
 
-    precio = obtener_precio(cripto)
+    precio = obtener_precio(crypto)
 
     if precio is None:
         await update.message.reply_text("Cripto no soportada")
         return
 
-    await update.message.reply_text(f"💰 {cripto.upper()} = ${precio}")
+    await update.message.reply_text(
+        f"💰 Precio {crypto.upper()} = ${precio}"
+    )
 
-# ==============================
-# CREAR ALERTA
-# ==============================
+# =========================
+# ALERTAS
+# =========================
 
 async def alerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    try:
-        cripto = context.args[0]
-        objetivo = float(context.args[1])
-    except:
-        await update.message.reply_text("Usa: /alerta btc 70000")
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "Uso: /alerta btc 70000"
+        )
         return
 
-    user = str(update.message.chat_id)
+    crypto = context.args[0]
+    precio = float(context.args[1])
 
-    if user not in alertas:
-        alertas[user] = []
+    user = update.message.chat_id
 
-    alertas[user].append({
-        "cripto": cripto,
-        "precio": objetivo
-    })
-
-    guardar_alertas(alertas)
-
-    await update.message.reply_text(
-        f"🚨 Alerta creada\n{cripto.upper()} -> ${objetivo}"
+    cursor.execute(
+        "INSERT INTO alertas VALUES (?,?,?)",
+        (user, crypto, precio)
     )
 
-# ==============================
+    conn.commit()
+
+    await update.message.reply_text(
+        f"🔔 Alerta creada para {crypto.upper()} en ${precio}"
+    )
+
+# =========================
 # VER ALERTAS
-# ==============================
+# =========================
 
-async def misalertas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def mis_alertas(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    user = str(update.message.chat_id)
+    user = update.message.chat_id
 
-    if user not in alertas or len(alertas[user]) == 0:
+    cursor.execute(
+        "SELECT crypto,precio FROM alertas WHERE user_id=?",
+        (user,)
+    )
+
+    datos = cursor.fetchall()
+
+    if not datos:
         await update.message.reply_text("No tienes alertas")
         return
 
-    texto = "🚨 Tus alertas:\n\n"
+    mensaje = "🔔 Tus alertas:\n\n"
 
-    for a in alertas[user]:
-        texto += f"{a['cripto'].upper()} -> ${a['precio']}\n"
+    for c,p in datos:
+        mensaje += f"{c.upper()} → ${p}\n"
 
-    await update.message.reply_text(texto)
+    await update.message.reply_text(mensaje)
 
-# ==============================
-# ELIMINAR ALERTAS
-# ==============================
+# =========================
+# GRAFICA
+# =========================
 
-async def eliminaralertas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def grafica(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    user = str(update.message.chat_id)
+    if len(context.args)==0:
+        await update.message.reply_text("Usa: /grafica btc")
+        return
 
-    alertas[user] = []
+    crypto=context.args[0]
 
-    guardar_alertas(alertas)
+    pares={
+        "btc":"BTC-USD",
+        "eth":"ETH-USD",
+        "sol":"SOL-USD"
+    }
 
-    await update.message.reply_text("🗑 Alertas eliminadas")
+    ticker=pares.get(crypto)
 
-# ==============================
-# VERIFICAR ALERTAS
-# ==============================
+    data=yf.download(ticker,period="7d")
 
-async def verificar_alertas(app):
+    plt.figure()
+    plt.plot(data["Close"])
 
-    while True:
+    archivo="grafica.png"
 
-        for user in alertas:
+    plt.savefig(archivo)
 
-            for alerta in alertas[user]:
+    await update.message.reply_photo(photo=open(archivo,"rb"))
 
-                precio_actual = obtener_precio(alerta["cripto"])
+# =========================
+# HELP
+# =========================
 
-                if precio_actual >= alerta["precio"]:
+async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-                    await app.bot.send_message(
-                        chat_id=user,
-                        text=f"🚨 ALERTA\n{alerta['cripto'].upper()} llegó a ${precio_actual}"
-                    )
+    mensaje="""
+📖 COMANDOS
 
-        await asyncio.sleep(60)
+/start → menú
+/precio btc
+/alerta btc 70000
+/misalertas
+/grafica btc
+"""
 
-# ==============================
+    await update.message.reply_text(mensaje)
+
+# =========================
 # MAIN
-# ==============================
-
-async def iniciar_verificador(app):
-    while True:
-        await verificar_alertas(app)
+# =========================
 
 def main():
-
-    if TOKEN is None:
-        print("ERROR: TOKEN no configurado")
-        return
 
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("precio", precio))
     app.add_handler(CommandHandler("alerta", alerta))
-    app.add_handler(CommandHandler("misalertas", misalertas))
-    app.add_handler(CommandHandler("eliminaralertas", eliminaralertas))
+    app.add_handler(CommandHandler("misalertas", mis_alertas))
+    app.add_handler(CommandHandler("grafica", grafica))
+    app.add_handler(CommandHandler("help", help))
 
-    print("Bot funcionando...")
+    app.add_handler(CallbackQueryHandler(botones))
+
+    print("BOT ULTRA PRO INICIADO")
 
     app.run_polling()
 
