@@ -1,254 +1,277 @@
 import os
-import sqlite3
+import json
+import requests
 import yfinance as yf
 import matplotlib.pyplot as plt
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-)
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-TOKEN = os.getenv("8718683908:AAFHR0BJ4mzRZw450TUciw_-jrxPb8VVMK4")
+TOKEN = os.getenv("8771204299:AAF-H6RWaRqsR7Yr9lyHrfmPk6-YHS14F0U")
 
-# =========================
-# BASE DE DATOS
-# =========================
+if not TOKEN:
+    raise ValueError("TOKEN no configurado")
 
-conn = sqlite3.connect("alertas.db", check_same_thread=False)
-cursor = conn.cursor()
+# ===============================
+# ARCHIVOS
+# ===============================
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS alertas(
-user_id INTEGER,
-crypto TEXT,
-precio REAL
-)
-""")
+ALERT_FILE = "alertas.json"
 
-conn.commit()
+if not os.path.exists(ALERT_FILE):
+    with open(ALERT_FILE, "w") as f:
+        json.dump([], f)
 
-# =========================
-# PRECIOS
-# =========================
+# ===============================
+# TOP 20 CRYPTOS
+# ===============================
 
-def obtener_precio(crypto):
+cryptos = {
+    "btc": "BTC-USD",
+    "eth": "ETH-USD",
+    "bnb": "BNB-USD",
+    "xrp": "XRP-USD",
+    "ada": "ADA-USD",
+    "sol": "SOL-USD",
+    "doge": "DOGE-USD",
+    "dot": "DOT-USD",
+    "matic": "MATIC-USD",
+    "ltc": "LTC-USD",
+    "trx": "TRX-USD",
+    "avax": "AVAX-USD",
+    "link": "LINK-USD",
+    "atom": "ATOM-USD",
+    "uni": "UNI-USD",
+    "xlm": "XLM-USD",
+    "etc": "ETC-USD",
+    "hbar": "HBAR-USD",
+    "fil": "FIL-USD",
+    "apt": "APT-USD"
+}
 
-    pares = {
-        "btc": "BTC-USD",
-        "eth": "ETH-USD",
-        "sol": "SOL-USD"
-    }
+# ===============================
+# PRECIO CRYPTO
+# ===============================
 
-    ticker = pares.get(crypto.lower())
+def get_price(symbol):
+    data = yf.Ticker(symbol)
+    hist = data.history(period="1d")
+    return float(hist["Close"].iloc[-1])
 
-    if not ticker:
-        return None
-
-    data = yf.Ticker(ticker)
-    precio = data.history(period="1d")["Close"].iloc[-1]
-
-    return round(precio,2)
-
-# =========================
-# MENU
-# =========================
+# ===============================
+# START
+# ===============================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
-        [InlineKeyboardButton("💰 Precio BTC", callback_data="btc")],
-        [InlineKeyboardButton("💰 Precio ETH", callback_data="eth")],
-        [InlineKeyboardButton("⚡ Precio SOL", callback_data="sol")],
-        [InlineKeyboardButton("📊 Top Criptos", callback_data="top")]
+        [InlineKeyboardButton("📊 Mercado", callback_data="market")],
+        [InlineKeyboardButton("📈 Ganadores", callback_data="top")],
+        [InlineKeyboardButton("📉 Perdedores", callback_data="losers")],
+        [InlineKeyboardButton("📊 Grafica BTC", callback_data="grafica")],
+        [InlineKeyboardButton("💎 Premium", callback_data="premium")]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        "🤖 Bot Cripto Ultra Pro\n\nSelecciona una opción:",
+        "🚀 BOT CRIPTO PRO\n\nSelecciona una opción:",
         reply_markup=reply_markup
     )
 
-# =========================
-# BOTONES
-# =========================
+# ===============================
+# TOP 20
+# ===============================
 
-async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def market(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    query = update.callback_query
-    await query.answer()
+    text = "📊 TOP 20 CRYPTO\n\n"
 
-    crypto = query.data
+    for name, symbol in cryptos.items():
 
-    if crypto in ["btc","eth","sol"]:
+        try:
+            price = get_price(symbol)
+            text += f"{name.upper()} : ${price:.2f}\n"
+        except:
+            pass
 
-        precio = obtener_precio(crypto)
+    await update.message.reply_text(text)
 
-        await query.edit_message_text(
-            f"💰 Precio de {crypto.upper()}:\n\n${precio}"
-        )
+# ===============================
+# GANADORES
+# ===============================
 
-    if crypto == "top":
+async def top(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-        btc = obtener_precio("btc")
-        eth = obtener_precio("eth")
-        sol = obtener_precio("sol")
+    data = yf.download(list(cryptos.values()), period="2d")
 
-        mensaje = f"""
-📊 TOP CRIPTOS
+    cambios = []
 
-BTC: ${btc}
-ETH: ${eth}
-SOL: ${sol}
-"""
+    for i, symbol in enumerate(cryptos.values()):
 
-        await query.edit_message_text(mensaje)
+        try:
+            close = data["Close"][symbol]
+            change = ((close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]) * 100
+            cambios.append((symbol, change))
+        except:
+            pass
 
-# =========================
-# COMANDO PRECIO
-# =========================
+    cambios.sort(key=lambda x: x[1], reverse=True)
 
-async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = "📈 TOP GANADORES\n\n"
 
-    if len(context.args) == 0:
-        await update.message.reply_text("Usa: /precio btc")
-        return
+    for c in cambios[:5]:
+        text += f"{c[0]} : {c[1]:.2f}%\n"
 
-    crypto = context.args[0]
+    await update.message.reply_text(text)
 
-    precio = obtener_precio(crypto)
+# ===============================
+# PERDEDORES
+# ===============================
 
-    if precio is None:
-        await update.message.reply_text("Cripto no soportada")
-        return
+async def losers(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    await update.message.reply_text(
-        f"💰 Precio {crypto.upper()} = ${precio}"
-    )
+    data = yf.download(list(cryptos.values()), period="2d")
 
-# =========================
-# ALERTAS
-# =========================
+    cambios = []
+
+    for i, symbol in enumerate(cryptos.values()):
+
+        try:
+            close = data["Close"][symbol]
+            change = ((close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]) * 100
+            cambios.append((symbol, change))
+        except:
+            pass
+
+    cambios.sort(key=lambda x: x[1])
+
+    text = "📉 TOP PERDEDORES\n\n"
+
+    for c in cambios[:5]:
+        text += f"{c[0]} : {c[1]:.2f}%\n"
+
+    await update.message.reply_text(text)
+
+# ===============================
+# ALERTA
+# ===============================
 
 async def alerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    if len(context.args) < 2:
-        await update.message.reply_text(
-            "Uso: /alerta btc 70000"
-        )
-        return
+    try:
 
-    crypto = context.args[0]
-    precio = float(context.args[1])
+        coin = context.args[0].lower()
+        porcentaje = float(context.args[1])
 
-    user = update.message.chat_id
+        with open(ALERT_FILE) as f:
+            alertas = json.load(f)
 
-    cursor.execute(
-        "INSERT INTO alertas VALUES (?,?,?)",
-        (user, crypto, precio)
-    )
+        alertas.append({
+            "chat": update.effective_chat.id,
+            "coin": coin,
+            "porcentaje": porcentaje,
+            "precio": get_price(cryptos[coin])
+        })
 
-    conn.commit()
+        with open(ALERT_FILE, "w") as f:
+            json.dump(alertas, f)
 
-    await update.message.reply_text(
-        f"🔔 Alerta creada para {crypto.upper()} en ${precio}"
-    )
+        await update.message.reply_text("🚨 Alerta creada")
 
-# =========================
-# VER ALERTAS
-# =========================
+    except:
 
-async def mis_alertas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await update.message.reply_text("Uso: /alerta btc 3")
 
-    user = update.message.chat_id
+# ===============================
+# VERIFICAR ALERTAS
+# ===============================
 
-    cursor.execute(
-        "SELECT crypto,precio FROM alertas WHERE user_id=?",
-        (user,)
-    )
+async def verificar_alertas(context):
 
-    datos = cursor.fetchall()
+    with open(ALERT_FILE) as f:
+        alertas = json.load(f)
 
-    if not datos:
-        await update.message.reply_text("No tienes alertas")
-        return
+    nuevas = []
 
-    mensaje = "🔔 Tus alertas:\n\n"
+    for alerta in alertas:
 
-    for c,p in datos:
-        mensaje += f"{c.upper()} → ${p}\n"
+        try:
 
-    await update.message.reply_text(mensaje)
+            coin = alerta["coin"]
+            precio_actual = get_price(cryptos[coin])
 
-# =========================
+            cambio = ((precio_actual - alerta["precio"]) / alerta["precio"]) * 100
+
+            if abs(cambio) >= alerta["porcentaje"]:
+
+                await context.bot.send_message(
+                    alerta["chat"],
+                    f"🚨 ALERTA {coin.upper()}\nCambio: {cambio:.2f}%"
+                )
+
+            else:
+
+                nuevas.append(alerta)
+
+        except:
+            pass
+
+    with open(ALERT_FILE, "w") as f:
+        json.dump(nuevas, f)
+
+# ===============================
 # GRAFICA
-# =========================
+# ===============================
 
 async def grafica(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    if len(context.args)==0:
-        await update.message.reply_text("Usa: /grafica btc")
-        return
-
-    crypto=context.args[0]
-
-    pares={
-        "btc":"BTC-USD",
-        "eth":"ETH-USD",
-        "sol":"SOL-USD"
-    }
-
-    ticker=pares.get(crypto)
-
-    data=yf.download(ticker,period="7d")
+    data = yf.Ticker("BTC-USD")
+    hist = data.history(period="7d")
 
     plt.figure()
-    plt.plot(data["Close"])
+    hist["Close"].plot()
+    plt.title("BTC 7D")
+    plt.savefig("grafica.png")
+    plt.close()
 
-    archivo="grafica.png"
+    await update.message.reply_photo(photo=open("grafica.png", "rb"))
 
-    plt.savefig(archivo)
+# ===============================
+# PREMIUM
+# ===============================
 
-    await update.message.reply_photo(photo=open(archivo,"rb"))
+async def premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-# =========================
-# HELP
-# =========================
+    await update.message.reply_text(
 
-async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        "💎 CRYPTO PRO PREMIUM\n\n"
+        "✔ Señales exclusivas\n"
+        "✔ Alertas adelantadas\n"
+        "✔ Estrategias de trading\n\n"
+        "Precio: $5 USD / mes\n"
+        "Contacto: @tuusuario"
 
-    mensaje="""
-📖 COMANDOS
+    )
 
-/start → menú
-/precio btc
-/alerta btc 70000
-/misalertas
-/grafica btc
-"""
-
-    await update.message.reply_text(mensaje)
-
-# =========================
+# ===============================
 # MAIN
-# =========================
+# ===============================
 
 def main():
 
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("precio", precio))
+    app.add_handler(CommandHandler("market", market))
+    app.add_handler(CommandHandler("top", top))
+    app.add_handler(CommandHandler("perdedores", losers))
     app.add_handler(CommandHandler("alerta", alerta))
-    app.add_handler(CommandHandler("misalertas", mis_alertas))
     app.add_handler(CommandHandler("grafica", grafica))
-    app.add_handler(CommandHandler("help", help))
+    app.add_handler(CommandHandler("premium", premium))
 
-    app.add_handler(CallbackQueryHandler(botones))
+    app.job_queue.run_repeating(verificar_alertas, interval=60, first=10)
 
-    print("BOT ULTRA PRO INICIADO")
+    print("BOT ONLINE 🚀")
 
     app.run_polling()
 
