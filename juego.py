@@ -4,7 +4,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # --- CONFIGURACIÓN ---
-TOKEN = '8718683908:AAFHR0BJ4mzRZw450TUciw_-jrxPb8VVMK4'  # <--- PEGA TU TOKEN AQUÍ
+TOKEN = 'tu token aqui'  # <--- PEGA TU TOKEN AQUÍ
 MAPA_SIZE = 8
 TILE_SIZE = 60 
 
