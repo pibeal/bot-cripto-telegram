@@ -1,6 +1,5 @@
 import os
 import sqlite3
-import asyncio
 import time
 import yfinance as yf
 import pandas as pd
@@ -10,7 +9,12 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import (
+ApplicationBuilder,
+CommandHandler,
+CallbackQueryHandler,
+ContextTypes
+)
 
 # =========================
 # TOKEN
@@ -43,6 +47,7 @@ conn.commit()
 # =========================
 
 cryptos = {
+
 "BTC":"BTC-USD",
 "ETH":"ETH-USD",
 "BNB":"BNB-USD",
@@ -53,23 +58,27 @@ cryptos = {
 "AVAX":"AVAX-USD",
 "MATIC":"MATIC-USD",
 "DOT":"DOT-USD"
+
 }
 
 # =========================
-# CACHE DE PRECIOS
+# CACHE PRECIOS
 # =========================
 
 price_cache = {}
 cache_time = {}
 
-CACHE_DURATION = 60
+CACHE_TIME = 60
+
 
 def get_price(symbol):
 
     now = time.time()
 
-    if symbol in price_cache and now - cache_time[symbol] < CACHE_DURATION:
-        return price_cache[symbol]
+    if symbol in price_cache:
+
+        if now - cache_time[symbol] < CACHE_TIME:
+            return price_cache[symbol]
 
     data = yf.Ticker(symbol).history(period="1d")
 
@@ -88,34 +97,13 @@ def get_history(symbol,period="3mo"):
     return data
 
 # =========================
-# MERCADO
-# =========================
-
-def market_scan():
-
-    results=[]
-
-    for c,t in cryptos.items():
-
-        data=get_history(t,"2d")
-
-        today=data["Close"].iloc[-1]
-        yesterday=data["Close"].iloc[-2]
-
-        change=((today-yesterday)/yesterday)*100
-
-        results.append((c,change))
-
-    results.sort(key=lambda x:x[1],reverse=True)
-
-    return results
-
-# =========================
 # INDICADORES
 # =========================
 
 def EMA(data,period):
+
     return data["Close"].ewm(span=period).mean()
+
 
 def RSI(data):
 
@@ -210,39 +198,41 @@ def create_chart(data,crypto):
 # ALERTAS
 # =========================
 
-async def check_alerts(app):
+async def check_alerts(context):
 
-    while True:
+    try:
 
-        try:
+        cursor.execute("SELECT chat_id,crypto,precio FROM alertas")
 
-            cursor.execute("SELECT chat_id,crypto,precio FROM alertas")
+        alertas=cursor.fetchall()
 
-            alertas=cursor.fetchall()
+        for chat_id,crypto,precio in alertas:
 
-            for chat_id,crypto,precio in alertas:
+            current_price=get_price(cryptos[crypto])
 
-                current_price=get_price(cryptos[crypto])
+            if current_price>=precio:
 
-                if current_price>=precio:
+                await context.bot.send_message(
 
-                    await app.bot.send_message(
-                    chat_id=chat_id,
-                    text=f"🚨 ALERTA\n{crypto} llegó a ${current_price:.2f}"
-                    )
+                chat_id=chat_id,
 
-                    cursor.execute(
-                    "DELETE FROM alertas WHERE chat_id=? AND crypto=?",
-                    (chat_id,crypto)
-                    )
+                text=f"🚨 ALERTA\n{crypto} llegó a ${current_price:.2f}"
 
-                    conn.commit()
+                )
 
-        except Exception as e:
+                cursor.execute(
 
-            print("Error alertas:",e)
+                "DELETE FROM alertas WHERE chat_id=? AND crypto=?",
 
-        await asyncio.sleep(60)
+                (chat_id,crypto)
+
+                )
+
+                conn.commit()
+
+    except Exception as e:
+
+        print("Error alertas:",e)
 
 # =========================
 # MENU
@@ -251,10 +241,13 @@ async def check_alerts(app):
 def menu():
 
     keyboard=[
+
 [InlineKeyboardButton("💰 Precio BTC",callback_data="price")],
+
 [InlineKeyboardButton("📊 Grafica BTC",callback_data="chart")],
+
 [InlineKeyboardButton("🤖 Analisis BTC",callback_data="analysis")],
-[InlineKeyboardButton("🏆 Mercado",callback_data="market")]
+
 ]
 
     return InlineKeyboardMarkup(keyboard)
@@ -266,8 +259,11 @@ def menu():
 async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
-"🚀 CRYPTO BOT PROFESIONAL",
-reply_markup=menu()
+
+    "🚀 CRYPTO BOT PROFESIONAL",
+
+    reply_markup=menu()
+
 )
 
 # =========================
@@ -286,7 +282,11 @@ async def buttons(update,context):
 
         price=get_price("BTC-USD")
 
-        await query.message.reply_text(f"BTC ${price:.2f}")
+        await query.message.reply_text(
+
+        f"BTC ${price:.2f}"
+
+        )
 
     if data=="chart":
 
@@ -294,7 +294,11 @@ async def buttons(update,context):
 
         file=create_chart(data,"BTC")
 
-        await query.message.reply_photo(photo=open(file,"rb"))
+        await query.message.reply_photo(
+
+        photo=open(file,"rb")
+
+        )
 
     if data=="analysis":
 
@@ -303,23 +307,13 @@ async def buttons(update,context):
         trend,rsi,signal=analyze(data)
 
         await query.message.reply_text(
+
 f"Tendencia: {trend}\nRSI: {rsi:.2f}\nSeñal: {signal}"
+
 )
 
-    if data=="market":
-
-        top=market_scan()
-
-        text="🏆 MERCADO\n\n"
-
-        for c,p in top:
-
-            text+=f"{c} {p:.2f}%\n"
-
-        await query.message.reply_text(text)
-
 # =========================
-# ALERTA
+# COMANDO ALERTA
 # =========================
 
 async def alerta(update:Update,context:ContextTypes.DEFAULT_TYPE):
@@ -327,43 +321,54 @@ async def alerta(update:Update,context:ContextTypes.DEFAULT_TYPE):
     try:
 
         crypto=context.args[0].upper()
+
         precio=float(context.args[1])
 
         cursor.execute(
+
         "INSERT INTO alertas VALUES(?,?,?)",
+
         (update.message.chat_id,crypto,precio)
+
         )
 
         conn.commit()
 
         await update.message.reply_text(
+
         f"Alerta creada para {crypto} en ${precio}"
+
         )
 
     except:
 
         await update.message.reply_text(
-        "Uso correcto:\n/alerta BTC 50000"
+
+        "Uso:\n/alerta BTC 50000"
+
         )
 
 # =========================
 # MAIN
 # =========================
 
-async def main():
+def main():
 
     app=ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start",start))
+
     app.add_handler(CommandHandler("alerta",alerta))
+
     app.add_handler(CallbackQueryHandler(buttons))
 
-    asyncio.create_task(check_alerts(app))
+    # ALERTAS CADA 60 SEGUNDOS
+    app.job_queue.run_repeating(check_alerts,interval=60,first=10)
 
     print("BOT ACTIVO")
 
-    await app.run_polling()
+    app.run_polling()
 
 if __name__=="__main__":
 
-    asyncio.run(main())
+    main()
