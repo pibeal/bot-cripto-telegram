@@ -329,37 +329,26 @@ async def senal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # LOOP ALERTAS
 # =========================
 
-async def revisar_alertas(application):
+async def revisar_alertas(context: ContextTypes.DEFAULT_TYPE):
 
-    while True:
+    application = context.application
 
-        try:
+    cursor.execute("SELECT user_id,cripto,precio FROM alertas")
 
-            cursor.execute(
-                "SELECT user_id,cripto,precio FROM alertas"
+    datos = cursor.fetchall()
+
+    for user,cripto,precio_alerta in datos:
+
+        precio_actual = precio_binance(cripto)
+
+        if precio_actual >= precio_alerta:
+
+            await application.bot.send_message(
+                chat_id=user,
+                text=f"🚨 {cripto} llegó a ${precio_actual:.2f}"
             )
 
-            datos=cursor.fetchall()
-
-            for user,cripto,precio_alerta in datos:
-
-                precio_actual=precio_binance(cripto)
-
-                if precio_actual>=precio_alerta:
-
-                    await application.bot.send_message(
-                        chat_id=user,
-                        text=f"🚨 {cripto} llegó a ${precio_actual:.2f}"
-                    )
-
-            await asyncio.sleep(60)
-
-        except Exception as e:
-
-            logging.error(e)
-
-            await asyncio.sleep(120)
-
+         
 
 # =========================
 # MAIN
@@ -379,7 +368,7 @@ def main():
     application.add_handler(CommandHandler("analisis",analisis))
     application.add_handler(CommandHandler("senal",senal))
 
-    asyncio.create_task(revisar_alertas(application))
+    application.job_queue.run_repeating(revisar_alertas, interval=60, first=10)
 
     print("BOT CRYPTO BINANCE ACTIVO")
 
@@ -396,6 +385,7 @@ if __name__ == "__main__":
 
 
   
+
 
 
 
