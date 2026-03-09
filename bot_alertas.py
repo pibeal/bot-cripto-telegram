@@ -83,6 +83,25 @@ def historial_binance(symbol):
     return df
 
 # =========================
+# START
+# =========================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await update.message.reply_text(
+        "🤖 Bot Crypto activo\n\n"
+        "Comandos disponibles:\n"
+        "/precio BTC\n"
+        "/top\n"
+        "/alerta BTC 50000\n"
+        "/misalertas\n"
+        "/borraralertas\n"
+        "/analisis BTC\n"
+        "/señal BTC\n"
+        "/test"
+    )
+
+# =========================
 # PRECIO
 # =========================
 
@@ -274,6 +293,16 @@ async def señal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # =========================
+# TEST
+# =========================
+
+async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await update.message.reply_text(
+        "✅ BOT ACTUALIZADO Y FUNCIONANDO"
+    )
+
+# =========================
 # LOOP ALERTAS
 # =========================
 
@@ -316,6 +345,7 @@ async def main():
 
     app=ApplicationBuilder().token(TOKEN).build()
 
+    app.add_handler(CommandHandler("start",start))
     app.add_handler(CommandHandler("precio",precio))
     app.add_handler(CommandHandler("top",top))
     app.add_handler(CommandHandler("alerta",alerta))
@@ -323,6 +353,7 @@ async def main():
     app.add_handler(CommandHandler("borraralertas",borraralertas))
     app.add_handler(CommandHandler("analisis",analisis))
     app.add_handler(CommandHandler("señal",señal))
+    app.add_handler(CommandHandler("test",test))
 
     asyncio.create_task(revisar_alertas(app))
 
@@ -330,5 +361,9 @@ async def main():
 
     await app.run_polling()
 
-if __name__=="__main__":
+# =========================
+# RUN
+# =========================
+
+if __name__ == "__main__":
     asyncio.run(main())
