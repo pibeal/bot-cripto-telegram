@@ -365,9 +365,9 @@ async def revisar_alertas(application):
 # MAIN
 # =========================
 
-async def main():
+def main():
 
-    application=ApplicationBuilder().token(TOKEN).build()
+    application = ApplicationBuilder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("start",start))
     application.add_handler(CommandHandler("test",test))
@@ -383,16 +383,11 @@ async def main():
 
     print("BOT CRYPTO BINANCE ACTIVO")
 
-    await application.run_polling()
+    application.run_polling()
 
-
-# =========================
-# RUN
-# =========================
 
 if __name__ == "__main__":
-
-    asyncio.run(main())
+    main()
     
 
   
@@ -401,6 +396,7 @@ if __name__ == "__main__":
 
 
   
+
 
 
 
