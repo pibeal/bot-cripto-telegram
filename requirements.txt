@@ -3,5 +3,6 @@ requests
 pandas
 numpy
 flask
-
+numpy
 matplotlib
+
