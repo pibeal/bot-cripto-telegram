@@ -277,23 +277,23 @@ def menu():
 
     keyboard=[
 
-    [InlineKeyboardButton("💰 BTC","btc"),
-     InlineKeyboardButton("💰 ETH","eth")],
+    [InlineKeyboardButton("💰 BTC", callback_data="btc"),
+     InlineKeyboardButton("💰 ETH", callback_data="eth")],
 
-    [InlineKeyboardButton("📊 Top 10","top10"),
-     InlineKeyboardButton("📊 Top 50","top50")],
+    [InlineKeyboardButton("📊 Top 10", callback_data="top10"),
+     InlineKeyboardButton("📊 Top 50", callback_data="top50")],
 
-    [InlineKeyboardButton("📊 Top 100","top100"),
-     InlineKeyboardButton("🚀 Ganadoras","ganadoras")],
+    [InlineKeyboardButton("📊 Top 100", callback_data="top100"),
+     InlineKeyboardButton("🚀 Ganadoras", callback_data="ganadoras")],
 
-    [InlineKeyboardButton("📉 Perdedoras","perdedoras"),
-     InlineKeyboardButton("🔥 Scanner","scanner")],
+    [InlineKeyboardButton("📉 Perdedoras", callback_data="perdedoras"),
+     InlineKeyboardButton("🔥 Scanner", callback_data="scanner")],
 
-    [InlineKeyboardButton("🚀 Pumps","pumps"),
-     InlineKeyboardButton("💎 Gems","gems")],
+    [InlineKeyboardButton("🚀 Pumps", callback_data="pumps"),
+     InlineKeyboardButton("💎 Gems", callback_data="gems")],
 
-    [InlineKeyboardButton("🤖 IA BTC","ia"),
-     InlineKeyboardButton("📈 Grafica BTC","graf")]
+    [InlineKeyboardButton("🤖 IA BTC", callback_data="ia"),
+     InlineKeyboardButton("📈 Grafica BTC", callback_data="graf")]
 
     ]
 
@@ -398,3 +398,4 @@ def main():
 if __name__=="__main__":
 
     main()
+
