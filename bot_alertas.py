@@ -324,23 +324,20 @@ def main():
 
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # limpia webhooks viejos
-    app.bot.delete_webhook(drop_pending_updates=True)
-
-    app.add_handler(CommandHandler("start",start))
-
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(botones))
 
-    app.job_queue.run_repeating(revisar_alertas,interval=60)
+    # alertas cada minuto
+    app.job_queue.run_repeating(revisar_alertas, interval=60)
 
     print("🚀 BOT CRYPTO PRO V2 ACTIVO")
 
     app.run_polling(
-        drop_pending_updates=True,
-        allowed_updates=Update.ALL_TYPES
+        drop_pending_updates=True
     )
 
 
 if __name__=="__main__":
 
     main()
+
