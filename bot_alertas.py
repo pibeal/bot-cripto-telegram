@@ -3,6 +3,7 @@ import json
 import requests
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ParseMode
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -12,64 +13,129 @@ from telegram.ext import (
     ContextTypes
 )
 
-# LOGS (IMPORTANTE PARA RAILWAY)
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+logging.basicConfig(level=logging.INFO)
 
-# TOKEN
 TOKEN = os.getenv("BOT_TOKEN")
 
-# CARGAR DATA
 with open("data.json", "r", encoding="utf-8") as f:
     data = json.load(f)
 
-# ⚠️ AVISO LEGAL
-async def aviso(update: Update):
+# ⚠️ AVISO
+async def aviso(update):
     await update.message.reply_text(
         "⚠️ Esto no es asesoría financiera. Toda inversión tiene riesgo."
     )
 
-# 💰 PRECIO CRIPTO (GRATIS)
-def obtener_precio(coin="bitcoin"):
-    try:
-        url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies=usd"
-        res = requests.get(url, timeout=10)
-        return res.json()[coin]["usd"]
-    except:
-        return "No disponible"
-
-# 🧠 IA LOCAL (SIN API)
+# 🧠 IA LOCAL
 def interpretar(texto):
     texto = texto.lower()
 
-    if any(p in texto for p in ["bitcoin", "btc", "crypto", "cripto", "ethereum"]):
+    if any(p in texto for p in ["bitcoin", "btc", "crypto", "cripto"]):
         return "cripto"
-
-    if any(p in texto for p in ["acciones", "bolsa", "invertir", "trading", "etf"]):
+    if any(p in texto for p in ["bolsa", "acciones", "etf"]):
         return "bolsa"
-
-    if any(p in texto for p in ["seguro", "ahorro", "rendimiento", "sin riesgo"]):
-        return "ahorro"
-
     return "ahorro"
+
+# 💰 PRECIO
+def precio(coin="bitcoin"):
+    try:
+        url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies=usd"
+        return requests.get(url).json()[coin]["usd"]
+    except:
+        return "N/A"
 
 # 🚀 START
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = (
+        "💸 *FINANCE BOT PRO*\n"
+        "━━━━━━━━━━━━━━━\n\n"
+        "Encuentra y compara opciones para hacer crecer tu dinero.\n\n"
+        "👇 Elige una opción:"
+    )
+
     keyboard = [
-        [InlineKeyboardButton("💰 Ahorro", callback_data="ahorro")],
-        [InlineKeyboardButton("📈 Bolsa", callback_data="bolsa")],
-        [InlineKeyboardButton("🪙 Cripto", callback_data="cripto")],
-        [InlineKeyboardButton("🧠 Recomiéndame", callback_data="ia")]
+        [
+            InlineKeyboardButton("💰 Ahorro", callback_data="ahorro"),
+            InlineKeyboardButton("📈 Bolsa", callback_data="bolsa")
+        ],
+        [
+            InlineKeyboardButton("🪙 Cripto", callback_data="cripto"),
+            InlineKeyboardButton("🏆 Ranking", callback_data="ranking")
+        ],
+        [
+            InlineKeyboardButton("🆚 Comparar", callback_data="comparar"),
+            InlineKeyboardButton("🧠 Recomendar", callback_data="ia")
+        ]
     ]
 
     await update.message.reply_text(
-        "💸 Bot financiero PRO\n\nElige una opción:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        texto,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
     )
 
     await aviso(update)
+
+# 📊 MOSTRAR OPCIONES
+async def mostrar(update, tipo):
+    resultados = [x for x in data if x["tipo"] == tipo]
+
+    mensaje = f"*{tipo.upper()}*\n━━━━━━━━━━━━━━━\n\n"
+    botones = []
+
+    for r in resultados:
+        mensaje += (
+            f"🏦 *{r['nombre']}*\n"
+            f"• Rendimiento: {r.get('rendimiento','N/A')}\n"
+            f"• Liquidez: {r.get('liquidez','N/A')}\n"
+            f"• Riesgo: {r['riesgo']}\n"
+            f"• {r.get('descripcion','')}\n\n"
+        )
+
+        botones.append([
+            InlineKeyboardButton(f"Abrir {r['nombre']}", url=r["link"])
+        ])
+
+    await update.message.reply_text(
+        mensaje,
+        reply_markup=InlineKeyboardMarkup(botones),
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+# 🏆 RANKING
+async def ranking(update):
+    orden = sorted(data, key=lambda x: x.get("riesgo", "z"))
+
+    mensaje = "*🏆 TOP OPCIONES*\n━━━━━━━━━━━━━━━\n\n"
+
+    for i, r in enumerate(orden[:5], 1):
+        mensaje += f"{i}. {r['nombre']} ({r['tipo']})\n"
+
+    await update.message.reply_text(
+        mensaje,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+# 🆚 COMPARADOR
+async def comparar(update):
+    if len(data) < 2:
+        await update.message.reply_text("No hay suficientes opciones.")
+        return
+
+    a, b = data[0], data[1]
+
+    mensaje = (
+        "*🆚 COMPARACIÓN*\n━━━━━━━━━━━━━━━\n\n"
+        f"*{a['nombre']} vs {b['nombre']}*\n\n"
+        f"Rendimiento:\n{a.get('rendimiento')} vs {b.get('rendimiento')}\n\n"
+        f"Riesgo:\n{a['riesgo']} vs {b['riesgo']}\n\n"
+        f"Liquidez:\n{a.get('liquidez')} vs {b.get('liquidez')}\n"
+    )
+
+    await update.message.reply_text(
+        mensaje,
+        parse_mode=ParseMode.MARKDOWN
+    )
 
 # 🎯 BOTONES
 async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -78,72 +144,34 @@ async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     tipo = query.data
 
-    if tipo == "cripto":
-        btc = obtener_precio("bitcoin")
-        eth = obtener_precio("ethereum")
+    if tipo == "ahorro" or tipo == "bolsa" or tipo == "cripto":
+        if tipo == "cripto":
+            btc = precio("bitcoin")
+            await query.message.reply_text(f"💰 BTC: ${btc}")
 
-        await query.message.reply_text(
-            f"💰 Precios actuales:\nBTC: ${btc}\nETH: ${eth}"
-        )
+        await mostrar(query, tipo)
 
-    if tipo == "ia":
-        await query.message.reply_text("Escríbeme qué buscas:")
-        return
+    elif tipo == "ranking":
+        await ranking(query)
 
-    resultados = [x for x in data if x["tipo"] == tipo]
+    elif tipo == "comparar":
+        await comparar(query)
 
-    if not resultados:
-        await query.message.reply_text("No hay opciones disponibles.")
-        return
+    elif tipo == "ia":
+        await query.message.reply_text("Escribe lo que buscas:")
 
-    botones = []
-    for r in resultados:
-        link = r.get("afiliado") or r["link"]
-        botones.append([
-            InlineKeyboardButton(
-                f"{r['nombre']} ({r['riesgo']})",
-                url=link
-            )
-        ])
-
-    await query.message.reply_text(
-        f"Opciones en {tipo}:",
-        reply_markup=InlineKeyboardMarkup(botones)
-    )
-
-# 🧠 MENSAJES (IA LOCAL)
+# 🧠 MENSAJES
 async def mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text
+    tipo = interpretar(texto)
 
-    categoria = interpretar(texto)
-
-    resultados = [
-        x for x in data
-        if categoria in x["tipo"] or categoria in x["riesgo"]
-    ]
-
-    if not resultados:
-        await update.message.reply_text("No encontré algo exacto.")
-        return
-
-    botones = []
-    for r in resultados:
-        link = r.get("afiliado") or r["link"]
-        botones.append([
-            InlineKeyboardButton(r["nombre"], url=link)
-        ])
-
-    await update.message.reply_text(
-        "🔎 Te recomiendo:",
-        reply_markup=InlineKeyboardMarkup(botones)
-    )
-
+    await mostrar(update, tipo)
     await aviso(update)
 
 # MAIN
 def main():
     if not TOKEN:
-        raise ValueError("Falta BOT_TOKEN en variables de entorno")
+        raise ValueError("Falta BOT_TOKEN")
 
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -151,11 +179,8 @@ def main():
     app.add_handler(CallbackQueryHandler(botones))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje))
 
-    print("🔥 BOT ACTIVO 24/7")
+    print("🔥 BOT PRO ACTIVO")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
-   
-
-    
