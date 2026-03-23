@@ -5,18 +5,46 @@
     "riesgo": "bajo",
     "rendimiento": "hasta 15% anual",
     "liquidez": "diaria",
-    "descripcion": "Cuenta con rendimiento automático",
+    "descripcion": "Cuenta con rendimiento automático sobre saldo",
     "link": "https://nu.com.mx"
   },
   {
     "nombre": "Mercado Pago",
     "tipo": "ahorro",
     "riesgo": "bajo",
-    "rendimiento": "aprox 10%",
+    "rendimiento": "aprox 10% anual",
     "liquidez": "inmediata",
-    "descripcion": "Dinero disponible con rendimiento",
-    "link": "https://mercadopago.com.mx"
+    "descripcion": "Dinero disponible con rendimiento diario",
+    "link": "https://www.mercadopago.com.mx"
   },
+  {
+    "nombre": "Ualá",
+    "tipo": "ahorro",
+    "riesgo": "bajo",
+    "rendimiento": "variable",
+    "liquidez": "alta",
+    "descripcion": "Cuenta digital con ahorro integrado",
+    "link": "https://www.uala.mx"
+  },
+  {
+    "nombre": "Hey Banco",
+    "tipo": "ahorro",
+    "riesgo": "bajo",
+    "rendimiento": "hasta 12% anual",
+    "liquidez": "media",
+    "descripcion": "Pagaré bancario con rendimiento",
+    "link": "https://heybanco.com"
+  },
+  {
+    "nombre": "Klar",
+    "tipo": "ahorro",
+    "riesgo": "bajo",
+    "rendimiento": "hasta 13% anual",
+    "liquidez": "media",
+    "descripcion": "Cuenta con ahorro y rendimiento",
+    "link": "https://klar.mx"
+  },
+
   {
     "nombre": "GBM",
     "tipo": "bolsa",
@@ -27,12 +55,49 @@
     "link": "https://gbm.com"
   },
   {
+    "nombre": "Bursanet",
+    "tipo": "bolsa",
+    "riesgo": "medio",
+    "rendimiento": "variable",
+    "liquidez": "media",
+    "descripcion": "Plataforma de inversión de Actinver",
+    "link": "https://bursanet.mx"
+  },
+  {
+    "nombre": "Kuspit",
+    "tipo": "bolsa",
+    "riesgo": "medio",
+    "rendimiento": "variable",
+    "liquidez": "media",
+    "descripcion": "Broker accesible para principiantes",
+    "link": "https://kuspit.com"
+  },
+
+  {
     "nombre": "Bitso",
     "tipo": "cripto",
     "riesgo": "alto",
     "rendimiento": "variable",
     "liquidez": "alta",
-    "descripcion": "Compra y venta de criptomonedas",
+    "descripcion": "Compra y venta de criptomonedas en México",
     "link": "https://bitso.com"
+  },
+  {
+    "nombre": "Binance",
+    "tipo": "cripto",
+    "riesgo": "alto",
+    "rendimiento": "variable",
+    "liquidez": "alta",
+    "descripcion": "Exchange global con muchas opciones",
+    "link": "https://binance.com"
+  },
+  {
+    "nombre": "Bybit",
+    "tipo": "cripto",
+    "riesgo": "alto",
+    "rendimiento": "variable",
+    "liquidez": "alta",
+    "descripcion": "Trading avanzado de criptomonedas",
+    "link": "https://bybit.com"
   }
 ]
