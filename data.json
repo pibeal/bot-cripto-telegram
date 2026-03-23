@@ -3,48 +3,36 @@
     "nombre": "Nu",
     "tipo": "ahorro",
     "riesgo": "bajo",
+    "rendimiento": "hasta 15% anual",
+    "liquidez": "diaria",
+    "descripcion": "Cuenta con rendimiento automático",
     "link": "https://nu.com.mx"
   },
   {
     "nombre": "Mercado Pago",
     "tipo": "ahorro",
     "riesgo": "bajo",
-    "link": "https://www.mercadopago.com.mx"
-  },
-  {
-    "nombre": "Ualá",
-    "tipo": "ahorro",
-    "riesgo": "bajo",
-    "link": "https://www.uala.mx"
+    "rendimiento": "aprox 10%",
+    "liquidez": "inmediata",
+    "descripcion": "Dinero disponible con rendimiento",
+    "link": "https://mercadopago.com.mx"
   },
   {
     "nombre": "GBM",
     "tipo": "bolsa",
     "riesgo": "medio",
+    "rendimiento": "variable",
+    "liquidez": "media",
+    "descripcion": "Inversión en acciones y ETFs",
     "link": "https://gbm.com"
-  },
-  {
-    "nombre": "Bursanet",
-    "tipo": "bolsa",
-    "riesgo": "medio",
-    "link": "https://bursanet.mx"
-  },
-  {
-    "nombre": "Kuspit",
-    "tipo": "bolsa",
-    "riesgo": "medio",
-    "link": "https://kuspit.com"
   },
   {
     "nombre": "Bitso",
     "tipo": "cripto",
     "riesgo": "alto",
+    "rendimiento": "variable",
+    "liquidez": "alta",
+    "descripcion": "Compra y venta de criptomonedas",
     "link": "https://bitso.com"
-  },
-  {
-    "nombre": "Binance",
-    "tipo": "cripto",
-    "riesgo": "alto",
-    "link": "https://binance.com"
   }
 ]
