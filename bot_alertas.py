@@ -1,401 +1,161 @@
 import os
+import json
 import requests
-import pandas as pd
-import matplotlib.pyplot as plt
-import sqlite3
 import logging
-
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
-
-TOKEN=os.getenv("TOKEN")
-
-logging.basicConfig(level=logging.INFO)
-
-# ======================
-# DATABASE
-# ======================
-
-conn=sqlite3.connect("crypto.db",check_same_thread=False)
-cursor=conn.cursor()
-
-cursor.execute("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY)")
-conn.commit()
-
-# ======================
-# OBTENER CRIPTOS
-# ======================
-
-def obtener_criptos():
-
-    url="https://api.binance.com/api/v3/exchangeInfo"
-
-    data=requests.get(url).json()
-
-    lista=[]
-
-    for s in data["symbols"]:
-
-        if "USDT" in s["symbol"]:
-
-            coin=s["symbol"].replace("USDT","")
-
-            if coin not in lista:
-
-                lista.append(coin)
-
-    return lista[:200]
-
-CRIPTO_LIST=obtener_criptos()
-
-# ======================
-# PRECIO
-# ======================
-
-def precio(symbol):
-
-    try:
-
-        url=f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}USDT"
-
-        data=requests.get(url).json()
-
-        return float(data["price"])
-
-    except:
-
-        return None
-
-# ======================
-# HISTORIAL
-# ======================
-
-def historial(symbol):
-
-    url=f"https://api.binance.com/api/v3/klines?symbol={symbol}USDT&interval=1h&limit=200"
-
-    data=requests.get(url).json()
-
-    df=pd.DataFrame(data)
-
-    df=df[[4]]
-
-    df.columns=["close"]
-
-    df["close"]=df["close"].astype(float)
-
-    return df
-
-# ======================
-# GRAFICA PRO
-# ======================
-
-def grafica(symbol):
-
-    df=historial(symbol)
-
-    df["SMA20"]=df["close"].rolling(20).mean()
-    df["SMA50"]=df["close"].rolling(50).mean()
-
-    delta=df["close"].diff()
-
-    gain=(delta.where(delta>0,0)).rolling(14).mean()
-    loss=(-delta.where(delta<0,0)).rolling(14).mean()
-
-    rs=gain/loss
-
-    df["RSI"]=100-(100/(1+rs))
-
-    plt.figure(figsize=(10,6))
-
-    plt.subplot(2,1,1)
-
-    plt.plot(df["close"],label="Precio")
-    plt.plot(df["SMA20"],label="SMA20")
-    plt.plot(df["SMA50"],label="SMA50")
-
-    plt.legend()
-    plt.title(symbol)
-
-    plt.subplot(2,1,2)
-
-    plt.plot(df["RSI"],label="RSI")
-
-    plt.axhline(70)
-    plt.axhline(30)
-
-    plt.legend()
-
-    plt.savefig("graf.png")
-
-    plt.close()
-
-# ======================
-# IA TRADING
-# ======================
-
-def ia(symbol):
-
-    df=historial(symbol)
-
-    sma20=df["close"].rolling(20).mean().iloc[-1]
-    sma50=df["close"].rolling(50).mean().iloc[-1]
-
-    if sma20>sma50:
-
-        return "🟢 Tendencia Alcista"
-
-    if sma20<sma50:
-
-        return "🔴 Tendencia Bajista"
-
-    return "⚪ Mercado lateral"
-
-# ======================
-# TOP
-# ======================
-
-def top(n=10):
-
-    texto=f"📊 TOP {n} CRIPTOS\n\n"
-
-    for c in CRIPTO_LIST[:n]:
-
-        p=precio(c)
-
-        if p:
-
-            texto+=f"{c} ${round(p,2)}\n"
-
-    return texto
-
-# ======================
-# GANADORAS
-# ======================
-
-def ganadoras():
-
-    url="https://api.binance.com/api/v3/ticker/24hr"
-
-    data=requests.get(url).json()
-
-    top=sorted(data,key=lambda x:float(x["priceChangePercent"]),reverse=True)[:10]
-
-    texto="🚀 GANADORAS\n\n"
-
-    for c in top:
-
-        texto+=f'{c["symbol"]} {c["priceChangePercent"]}%\n'
-
-    return texto
-
-# ======================
-# PERDEDORAS
-# ======================
-
-def perdedoras():
-
-    url="https://api.binance.com/api/v3/ticker/24hr"
-
-    data=requests.get(url).json()
-
-    top=sorted(data,key=lambda x:float(x["priceChangePercent"]))[:10]
-
-    texto="📉 PERDEDORAS\n\n"
-
-    for c in top:
-
-        texto+=f'{c["symbol"]} {c["priceChangePercent"]}%\n'
-
-    return texto
-
-# ======================
-# SCANNER
-# ======================
-
-def scanner():
-
-    url="https://api.binance.com/api/v3/ticker/24hr"
-
-    data=requests.get(url).json()
-
-    top=sorted(data,key=lambda x:abs(float(x["priceChangePercent"])),reverse=True)[:10]
-
-    texto="🔥 VOLATILIDAD\n\n"
-
-    for c in top:
-
-        texto+=f'{c["symbol"]} {c["priceChangePercent"]}%\n'
-
-    return texto
-
-# ======================
-# PUMPS
-# ======================
-
-def pumps():
-
-    url="https://api.binance.com/api/v3/ticker/24hr"
-
-    data=requests.get(url).json()
-
-    pumps=[c for c in data if float(c["priceChangePercent"])>8]
-
-    texto="🚀 POSIBLE PUMP\n\n"
-
-    for c in pumps[:10]:
-
-        texto+=f'{c["symbol"]} {c["priceChangePercent"]}%\n'
-
-    return texto
-
-# ======================
-# GEMS
-# ======================
-
-def gems():
-
-    url="https://api.binance.com/api/v3/ticker/24hr"
-
-    data=requests.get(url).json()
-
-    gems=[c for c in data if float(c["priceChangePercent"])>5]
-
-    texto="💎 GEMS\n\n"
-
-    for c in gems[:10]:
-
-        texto+=f'{c["symbol"]} {c["priceChangePercent"]}%\n'
-
-    return texto
-
-# ======================
-# MENU
-# ======================
-
-def menu():
-
-    keyboard=[
-
-    [InlineKeyboardButton("💰 BTC", callback_data="btc"),
-     InlineKeyboardButton("💰 ETH", callback_data="eth")],
-
-    [InlineKeyboardButton("📊 Top 10", callback_data="top10"),
-     InlineKeyboardButton("📊 Top 50", callback_data="top50")],
-
-    [InlineKeyboardButton("📊 Top 100", callback_data="top100"),
-     InlineKeyboardButton("🚀 Ganadoras", callback_data="ganadoras")],
-
-    [InlineKeyboardButton("📉 Perdedoras", callback_data="perdedoras"),
-     InlineKeyboardButton("🔥 Scanner", callback_data="scanner")],
-
-    [InlineKeyboardButton("🚀 Pumps", callback_data="pumps"),
-     InlineKeyboardButton("💎 Gems", callback_data="gems")],
-
-    [InlineKeyboardButton("🤖 IA BTC", callback_data="ia"),
-     InlineKeyboardButton("📈 Grafica BTC", callback_data="graf")]
-
-    ]
-
-    return InlineKeyboardMarkup(keyboard)
-
-# ======================
-# START
-# ======================
-
-async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
-
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    filters,
+    ContextTypes
+)
+
+# LOGS (IMPORTANTE PARA RAILWAY)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+
+# TOKEN
+TOKEN = os.getenv("BOT_TOKEN")
+
+# CARGAR DATA
+with open("data.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+# ⚠️ AVISO LEGAL
+async def aviso(update: Update):
     await update.message.reply_text(
-
-        "🤖 BOT CRYPTO PRO\nSelecciona una opción:",
-
-        reply_markup=menu()
-
+        "⚠️ Esto no es asesoría financiera. Toda inversión tiene riesgo."
     )
 
-# ======================
-# BOTONES
-# ======================
+# 💰 PRECIO CRIPTO (GRATIS)
+def obtener_precio(coin="bitcoin"):
+    try:
+        url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies=usd"
+        res = requests.get(url, timeout=10)
+        return res.json()[coin]["usd"]
+    except:
+        return "No disponible"
 
-async def botones(update:Update,context:ContextTypes.DEFAULT_TYPE):
+# 🧠 IA LOCAL (SIN API)
+def interpretar(texto):
+    texto = texto.lower()
 
-    query=update.callback_query
+    if any(p in texto for p in ["bitcoin", "btc", "crypto", "cripto", "ethereum"]):
+        return "cripto"
+
+    if any(p in texto for p in ["acciones", "bolsa", "invertir", "trading", "etf"]):
+        return "bolsa"
+
+    if any(p in texto for p in ["seguro", "ahorro", "rendimiento", "sin riesgo"]):
+        return "ahorro"
+
+    return "ahorro"
+
+# 🚀 START
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("💰 Ahorro", callback_data="ahorro")],
+        [InlineKeyboardButton("📈 Bolsa", callback_data="bolsa")],
+        [InlineKeyboardButton("🪙 Cripto", callback_data="cripto")],
+        [InlineKeyboardButton("🧠 Recomiéndame", callback_data="ia")]
+    ]
+
+    await update.message.reply_text(
+        "💸 Bot financiero PRO\n\nElige una opción:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+    await aviso(update)
+
+# 🎯 BOTONES
+async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
     await query.answer()
 
-    data=query.data
+    tipo = query.data
 
-    chat=query.message.chat_id
+    if tipo == "cripto":
+        btc = obtener_precio("bitcoin")
+        eth = obtener_precio("ethereum")
 
-    if data=="btc":
+        await query.message.reply_text(
+            f"💰 Precios actuales:\nBTC: ${btc}\nETH: ${eth}"
+        )
 
-        p=precio("BTC")
+    if tipo == "ia":
+        await query.message.reply_text("Escríbeme qué buscas:")
+        return
 
-        await context.bot.send_message(chat_id=chat,text=f"BTC ${p}",reply_markup=menu())
+    resultados = [x for x in data if x["tipo"] == tipo]
 
-    elif data=="eth":
+    if not resultados:
+        await query.message.reply_text("No hay opciones disponibles.")
+        return
 
-        p=precio("ETH")
+    botones = []
+    for r in resultados:
+        link = r.get("afiliado") or r["link"]
+        botones.append([
+            InlineKeyboardButton(
+                f"{r['nombre']} ({r['riesgo']})",
+                url=link
+            )
+        ])
 
-        await context.bot.send_message(chat_id=chat,text=f"ETH ${p}",reply_markup=menu())
+    await query.message.reply_text(
+        f"Opciones en {tipo}:",
+        reply_markup=InlineKeyboardMarkup(botones)
+    )
 
-    elif data=="top10":
+# 🧠 MENSAJES (IA LOCAL)
+async def mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = update.message.text
 
-        await context.bot.send_message(chat,text=top(10),reply_markup=menu())
+    categoria = interpretar(texto)
 
-    elif data=="top50":
+    resultados = [
+        x for x in data
+        if categoria in x["tipo"] or categoria in x["riesgo"]
+    ]
 
-        await context.bot.send_message(chat,text=top(50),reply_markup=menu())
+    if not resultados:
+        await update.message.reply_text("No encontré algo exacto.")
+        return
 
-    elif data=="top100":
+    botones = []
+    for r in resultados:
+        link = r.get("afiliado") or r["link"]
+        botones.append([
+            InlineKeyboardButton(r["nombre"], url=link)
+        ])
 
-        await context.bot.send_message(chat,text=top(100),reply_markup=menu())
+    await update.message.reply_text(
+        "🔎 Te recomiendo:",
+        reply_markup=InlineKeyboardMarkup(botones)
+    )
 
-    elif data=="ganadoras":
+    await aviso(update)
 
-        await context.bot.send_message(chat,text=ganadoras(),reply_markup=menu())
-
-    elif data=="perdedoras":
-
-        await context.bot.send_message(chat,text=perdedoras(),reply_markup=menu())
-
-    elif data=="scanner":
-
-        await context.bot.send_message(chat,text=scanner(),reply_markup=menu())
-
-    elif data=="pumps":
-
-        await context.bot.send_message(chat,text=pumps(),reply_markup=menu())
-
-    elif data=="gems":
-
-        await context.bot.send_message(chat,text=gems(),reply_markup=menu())
-
-    elif data=="ia":
-
-        await context.bot.send_message(chat,text=ia("BTC"),reply_markup=menu())
-
-    elif data=="graf":
-
-        grafica("BTC")
-
-        await context.bot.send_photo(chat,photo=open("graf.png","rb"))
-
-# ======================
 # MAIN
-# ======================
-
 def main():
+    if not TOKEN:
+        raise ValueError("Falta BOT_TOKEN en variables de entorno")
 
-    app=ApplicationBuilder().token(TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).build()
 
-    app.add_handler(CommandHandler("start",start))
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(botones))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje))
 
-    print("BOT CRYPTO PRO ACTIVO")
-
+    print("🔥 BOT ACTIVO 24/7")
     app.run_polling()
 
-if __name__=="__main__":
-
+if __name__ == "__main__":
     main()
+   
 
+    
