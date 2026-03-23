@@ -2,16 +2,17 @@ import os
 import json
 import requests
 import logging
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
-    MessageHandler,
     CallbackQueryHandler,
-    ContextTypes
+    MessageHandler,
+    ContextTypes,
+    filters
 )
-import asyncio
 
 logging.basicConfig(level=logging.INFO)
 
@@ -42,36 +43,40 @@ async def aviso(update):
         "⚠️ Esto no es asesoría financiera. Toda inversión tiene riesgo."
     )
 
-# 💰 PRECIO CRIPTO
+# 💰 PRECIO BTC
 def precio(coin="bitcoin"):
     try:
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies=usd"
-        return requests.get(url).json()[coin]["usd"]
+        return requests.get(url, timeout=10).json()[coin]["usd"]
     except:
         return None
 
-# 🔔 ALERTAS AUTOMÁTICAS
+# 🔔 ALERTAS AUTOMÁTICAS (SIN BUG)
 async def enviar_alertas(app):
-    ultimo_precio = 0
+    ultimo_precio = None
 
     while True:
-        btc = precio("bitcoin")
+        try:
+            btc = precio("bitcoin")
 
-        if btc and btc < 50000 and btc != ultimo_precio:
-            users = cargar_users()
+            if btc and btc < 100000 and btc != ultimo_precio:
+                users = cargar_users()
 
-            for u in users:
-                try:
-                    await app.bot.send_message(
-                        chat_id=u,
-                        text=f"🚨 ALERTA BTC\nBitcoin bajó a ${btc}"
-                    )
-                except:
-                    pass
+                for u in users:
+                    try:
+                        await app.bot.send_message(
+                            chat_id=u,
+                            text=f"🚨 ALERTA BTC\nBitcoin está en ${btc}"
+                        )
+                    except:
+                        pass
 
-            ultimo_precio = btc
+                ultimo_precio = btc
 
-        await asyncio.sleep(300)  # cada 5 min
+        except Exception as e:
+            print("Error alertas:", e)
+
+        await asyncio.sleep(300)  # cada 5 minutos
 
 # 🚀 START
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -81,7 +86,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = (
         "💸 *FINANCE BOT PRO*\n"
         "━━━━━━━━━━━━━━━\n\n"
-        "Plataforma para encontrar, comparar y monitorear inversiones.\n\n"
+        "Encuentra, compara y monitorea inversiones.\n\n"
         "👇 Elige una opción:"
     )
 
@@ -135,26 +140,62 @@ async def mostrar(update, tipo):
 
 # 🏆 RANKING
 async def ranking(update):
-    orden = sorted(data, key=lambda x: x["riesgo"])
+    def score(app):
+        puntos = 0
+
+        if app["riesgo"] == "bajo":
+            puntos += 3
+        elif app["riesgo"] == "medio":
+            puntos += 2
+        else:
+            puntos += 1
+
+        if "alta" in app.get("liquidez", ""):
+            puntos += 2
+
+        if "hasta" in app.get("rendimiento", ""):
+            puntos += 2
+
+        return puntos
+
+    orden = sorted(data, key=score, reverse=True)
 
     mensaje = "*🏆 TOP OPCIONES*\n━━━━━━━━━━━━━━━\n\n"
 
     for i, r in enumerate(orden[:5], 1):
-        mensaje += f"{i}. {r['nombre']} ({r['tipo']})\n"
+        mensaje += (
+            f"{i}. *{r['nombre']}*\n"
+            f"• Tipo: {r['tipo']}\n"
+            f"• Rendimiento: {r.get('rendimiento')}\n\n"
+        )
 
-    await update.message.reply_text(mensaje, parse_mode=ParseMode.MARKDOWN)
-
-# 🆚 COMPARAR
-async def comparar(update):
-    a, b = data[0], data[1]
-
-    mensaje = (
-        "*🆚 COMPARACIÓN*\n━━━━━━━━━━━━━━━\n\n"
-        f"{a['nombre']} vs {b['nombre']}\n\n"
-        f"Rendimiento:\n{a.get('rendimiento')} vs {b.get('rendimiento')}\n"
+    await update.message.reply_text(
+        mensaje,
+        parse_mode=ParseMode.MARKDOWN
     )
 
-    await update.message.reply_text(mensaje, parse_mode=ParseMode.MARKDOWN)
+# 🆚 COMPARADOR
+async def comparar(update):
+    ahorro = [x for x in data if x["tipo"] == "ahorro"]
+
+    if len(ahorro) < 2:
+        await update.message.reply_text("No hay suficientes opciones.")
+        return
+
+    a, b = ahorro[0], ahorro[1]
+
+    mensaje = (
+        "🆚 *COMPARACIÓN*\n━━━━━━━━━━━━━━━\n\n"
+        f"*{a['nombre']} vs {b['nombre']}*\n\n"
+        f"💰 Rendimiento:\n{a['rendimiento']} vs {b['rendimiento']}\n\n"
+        f"⚠️ Riesgo:\n{a['riesgo']} vs {b['riesgo']}\n\n"
+        f"💧 Liquidez:\n{a['liquidez']} vs {b['liquidez']}\n"
+    )
+
+    await update.message.reply_text(
+        mensaje,
+        parse_mode=ParseMode.MARKDOWN
+    )
 
 # 🎯 BOTONES
 async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -176,20 +217,42 @@ async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif tipo == "comparar":
         await comparar(query)
 
-# MAIN
-async def main():
+# 🧠 MENSAJES (IA SIMPLE)
+async def mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = update.message.text.lower()
+
+    if "btc" in texto or "bitcoin" in texto:
+        tipo = "cripto"
+    elif "bolsa" in texto or "acciones" in texto:
+        tipo = "bolsa"
+    else:
+        tipo = "ahorro"
+
+    await mostrar(update, tipo)
+    await aviso(update)
+
+# 🚀 MAIN CORREGIDO (SIN ERRORES)
+def main():
+    if not TOKEN:
+        raise ValueError("Falta BOT_TOKEN")
+
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(botones))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje))
 
-    # ALERTAS EN BACKGROUND
-    app.job_queue.run_once(lambda ctx: asyncio.create_task(enviar_alertas(app)), 1)
+    # 🔔 ALERTAS SIN BUG
+    async def iniciar_alertas(app):
+        asyncio.create_task(enviar_alertas(app))
 
-    print("🔥 BOT NEGOCIO ACTIVO")
+    app.post_init = iniciar_alertas
+
+    print("🔥 BOT PRO ACTIVO")
     app.run_polling()
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
+
+
 
