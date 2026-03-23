@@ -9,16 +9,32 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     CallbackQueryHandler,
-    filters,
     ContextTypes
 )
+import asyncio
 
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.getenv("BOT_TOKEN")
 
+# 📂 CARGAR DATA
 with open("data.json", "r", encoding="utf-8") as f:
     data = json.load(f)
+
+# 📂 USUARIOS
+def cargar_users():
+    try:
+        with open("users.json", "r") as f:
+            return json.load(f)
+    except:
+        return []
+
+def guardar_user(user_id):
+    users = cargar_users()
+    if user_id not in users:
+        users.append(user_id)
+        with open("users.json", "w") as f:
+            json.dump(users, f)
 
 # ⚠️ AVISO
 async def aviso(update):
@@ -26,30 +42,46 @@ async def aviso(update):
         "⚠️ Esto no es asesoría financiera. Toda inversión tiene riesgo."
     )
 
-# 🧠 IA LOCAL
-def interpretar(texto):
-    texto = texto.lower()
-
-    if any(p in texto for p in ["bitcoin", "btc", "crypto", "cripto"]):
-        return "cripto"
-    if any(p in texto for p in ["bolsa", "acciones", "etf"]):
-        return "bolsa"
-    return "ahorro"
-
-# 💰 PRECIO
+# 💰 PRECIO CRIPTO
 def precio(coin="bitcoin"):
     try:
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies=usd"
         return requests.get(url).json()[coin]["usd"]
     except:
-        return "N/A"
+        return None
+
+# 🔔 ALERTAS AUTOMÁTICAS
+async def enviar_alertas(app):
+    ultimo_precio = 0
+
+    while True:
+        btc = precio("bitcoin")
+
+        if btc and btc < 50000 and btc != ultimo_precio:
+            users = cargar_users()
+
+            for u in users:
+                try:
+                    await app.bot.send_message(
+                        chat_id=u,
+                        text=f"🚨 ALERTA BTC\nBitcoin bajó a ${btc}"
+                    )
+                except:
+                    pass
+
+            ultimo_precio = btc
+
+        await asyncio.sleep(300)  # cada 5 min
 
 # 🚀 START
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.chat_id
+    guardar_user(user_id)
+
     texto = (
         "💸 *FINANCE BOT PRO*\n"
         "━━━━━━━━━━━━━━━\n\n"
-        "Encuentra y compara opciones para hacer crecer tu dinero.\n\n"
+        "Plataforma para encontrar, comparar y monitorear inversiones.\n\n"
         "👇 Elige una opción:"
     )
 
@@ -63,8 +95,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🏆 Ranking", callback_data="ranking")
         ],
         [
-            InlineKeyboardButton("🆚 Comparar", callback_data="comparar"),
-            InlineKeyboardButton("🧠 Recomendar", callback_data="ia")
+            InlineKeyboardButton("🆚 Comparar", callback_data="comparar")
         ]
     ]
 
@@ -104,38 +135,26 @@ async def mostrar(update, tipo):
 
 # 🏆 RANKING
 async def ranking(update):
-    orden = sorted(data, key=lambda x: x.get("riesgo", "z"))
+    orden = sorted(data, key=lambda x: x["riesgo"])
 
     mensaje = "*🏆 TOP OPCIONES*\n━━━━━━━━━━━━━━━\n\n"
 
     for i, r in enumerate(orden[:5], 1):
         mensaje += f"{i}. {r['nombre']} ({r['tipo']})\n"
 
-    await update.message.reply_text(
-        mensaje,
-        parse_mode=ParseMode.MARKDOWN
-    )
+    await update.message.reply_text(mensaje, parse_mode=ParseMode.MARKDOWN)
 
-# 🆚 COMPARADOR
+# 🆚 COMPARAR
 async def comparar(update):
-    if len(data) < 2:
-        await update.message.reply_text("No hay suficientes opciones.")
-        return
-
     a, b = data[0], data[1]
 
     mensaje = (
         "*🆚 COMPARACIÓN*\n━━━━━━━━━━━━━━━\n\n"
-        f"*{a['nombre']} vs {b['nombre']}*\n\n"
-        f"Rendimiento:\n{a.get('rendimiento')} vs {b.get('rendimiento')}\n\n"
-        f"Riesgo:\n{a['riesgo']} vs {b['riesgo']}\n\n"
-        f"Liquidez:\n{a.get('liquidez')} vs {b.get('liquidez')}\n"
+        f"{a['nombre']} vs {b['nombre']}\n\n"
+        f"Rendimiento:\n{a.get('rendimiento')} vs {b.get('rendimiento')}\n"
     )
 
-    await update.message.reply_text(
-        mensaje,
-        parse_mode=ParseMode.MARKDOWN
-    )
+    await update.message.reply_text(mensaje, parse_mode=ParseMode.MARKDOWN)
 
 # 🎯 BOTONES
 async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -144,11 +163,11 @@ async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     tipo = query.data
 
-    if tipo == "ahorro" or tipo == "bolsa" or tipo == "cripto":
-        if tipo == "cripto":
-            btc = precio("bitcoin")
-            await query.message.reply_text(f"💰 BTC: ${btc}")
+    if tipo == "cripto":
+        btc = precio("bitcoin")
+        await query.message.reply_text(f"💰 BTC: ${btc}")
 
+    if tipo in ["ahorro", "bolsa", "cripto"]:
         await mostrar(query, tipo)
 
     elif tipo == "ranking":
@@ -157,30 +176,20 @@ async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif tipo == "comparar":
         await comparar(query)
 
-    elif tipo == "ia":
-        await query.message.reply_text("Escribe lo que buscas:")
-
-# 🧠 MENSAJES
-async def mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    texto = update.message.text
-    tipo = interpretar(texto)
-
-    await mostrar(update, tipo)
-    await aviso(update)
-
 # MAIN
-def main():
-    if not TOKEN:
-        raise ValueError("Falta BOT_TOKEN")
-
+async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(botones))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje))
 
-    print("🔥 BOT PRO ACTIVO")
+    # ALERTAS EN BACKGROUND
+    app.job_queue.run_once(lambda ctx: asyncio.create_task(enviar_alertas(app)), 1)
+
+    print("🔥 BOT NEGOCIO ACTIVO")
     app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
+
