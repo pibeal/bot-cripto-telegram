@@ -3,7 +3,7 @@
     "nombre": "Nu",
     "tipo": "ahorro",
     "riesgo": "bajo",
-    "rendimiento": "hasta 15% anual",
+    "rendimiento": "hasta 13% anual",
     "liquidez": "diaria",
     "descripcion": "Cuenta con rendimiento automático sobre saldo",
     "link": "https://nu.com.mx"
@@ -61,7 +61,7 @@
     "rendimiento": "variable",
     "liquidez": "media",
     "descripcion": "Plataforma de inversión de Actinver",
-    "link": "https://bursanet.mx"
+    "link": "https://www.bursanet.mx"
   },
   {
     "nombre": "Kuspit",
