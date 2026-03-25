@@ -2,7 +2,6 @@ import os
 import json
 import requests
 import logging
-import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -47,20 +46,6 @@ def precio():
         return requests.get(url).json()["bitcoin"]["usd"]
     except:
         return "N/A"
-
-# 🔔 ALERTAS
-async def enviar_alertas(app):
-    ultimo = None
-    while True:
-        btc = precio()
-        if btc != ultimo:
-            for u in cargar_users():
-                try:
-                    await app.bot.send_message(u, f"🚨 BTC: ${btc}")
-                except:
-                    pass
-            ultimo = btc
-        await asyncio.sleep(300)
 
 # 🏠 MENU PRINCIPAL
 def menu_principal():
@@ -153,7 +138,7 @@ def generar_comparacion():
 
     return mensaje, botones
 
-# 🎯 BOTONES (APP REAL)
+# 🎯 BOTONES
 async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -218,17 +203,9 @@ def main():
     app.add_handler(CallbackQueryHandler(botones))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje))
 
-    # ALERTAS
-    async def iniciar_alertas(app):
-        asyncio.create_task(enviar_alertas(app))
-
-    app.post_init = iniciar_alertas
-
     print("🔥 BOT APP PRO ACTIVO")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
-
-
     
