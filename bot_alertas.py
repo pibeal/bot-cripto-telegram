@@ -1,22 +1,21 @@
 import os
 import asyncio
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 TOKEN = os.getenv("BOT_TOKEN")
 
 # =========================
-# LIMPIAR CONFLICTO
+# LIMPIAR WEBHOOK (ANTI-CONFLICT)
 # =========================
 async def limpiar():
-    from telegram import Bot
     bot = Bot(TOKEN)
     await bot.delete_webhook(drop_pending_updates=True)
 
 asyncio.get_event_loop().run_until_complete(limpiar())
 
 # =========================
-# MENU
+# MENU PRINCIPAL
 # =========================
 def main_menu():
     return InlineKeyboardMarkup([
@@ -61,7 +60,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_nu":
         await query.edit_message_text(
-            "🥇 *Nu Bank*\n\n💰 9% - 15% anual\n📊 Bajo riesgo\n\nIdeal para empezar",
+            "🥇 *Nu Bank*\n\n"
+            "💰 Rendimiento: 9% - 15% anual\n"
+            "📊 Riesgo: Bajo\n\n"
+            "✔️ Liquidez diaria\n✔️ Sin comisiones\n\n"
+            "💡 Ideal para empezar",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://nu.com.mx")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
@@ -71,7 +74,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_klar":
         await query.edit_message_text(
-            "💳 *Klar*\n\n💰 ~10% anual\n📊 Bajo riesgo",
+            "💳 *Klar*\n\n"
+            "💰 ~10% anual\n📊 Bajo riesgo\n\n"
+            "✔️ Tarjeta incluida\n✔️ App sencilla",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.klar.mx")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
@@ -81,38 +86,49 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_uala":
         await query.edit_message_text(
-            "💳 Ualá\nCuenta digital sin comisiones",
+            "💳 *Ualá*\n\n"
+            "✔️ Cuenta digital\n✔️ Sin comisiones\n\n"
+            "💡 Ideal para manejo diario",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.uala.mx")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
     elif data == "app_mp":
         await query.edit_message_text(
-            "💰 MercadoPago\nRendimientos + liquidez",
+            "💰 *MercadoPago*\n\n"
+            "✔️ Rendimiento automático\n✔️ Dinero disponible\n\n"
+            "💡 Ahorro flexible",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.mercadopago.com.mx")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
     elif data == "app_hey":
         await query.edit_message_text(
-            "🏦 Hey Banco\nCuenta con rendimiento",
+            "🏦 *Hey Banco*\n\n"
+            "💰 Rendimiento moderado\n✔️ Cuenta digital",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.heybanco.com")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
     elif data == "app_cetes":
         await query.edit_message_text(
-            "🏦 CETES\n\n💰 10% - 11%\n📊 Muy bajo riesgo",
+            "🏦 *CETES*\n\n"
+            "💰 10% - 11% anual\n📊 Muy bajo riesgo\n\n"
+            "✔️ Respaldo gobierno",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.cetesdirecto.com")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
     # =========================
@@ -128,29 +144,36 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_gbm":
         await query.edit_message_text(
-            "🥇 GBM\nAcciones y ETFs\nEj: Apple, Tesla",
+            "🥇 *GBM+*\n\n"
+            "📈 Acciones (Apple, Tesla)\n📊 ETFs\n\n"
+            "💰 Ganancia variable\n📊 Riesgo medio",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://gbm.com")],
                 [InlineKeyboardButton("🔙", callback_data="bolsa")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
     elif data == "app_kuspit":
         await query.edit_message_text(
-            "📊 Kuspit\nAcciones mexicanas\nIdeal para aprender",
+            "📊 *Kuspit*\n\n"
+            "✔️ Acciones mexicanas\n💡 Ideal para aprender",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.kuspit.com")],
                 [InlineKeyboardButton("🔙", callback_data="bolsa")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
     elif data == "app_bursanet":
         await query.edit_message_text(
-            "📈 Bursanet\nPlataforma avanzada",
+            "📈 *Bursanet*\n\n"
+            "✔️ Plataforma más avanzada\n✔️ Fondos y acciones",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.bursanet.mx")],
                 [InlineKeyboardButton("🔙", callback_data="bolsa")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
     # =========================
@@ -166,29 +189,36 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_binance":
         await query.edit_message_text(
-            "🪙 Binance\nCompra BTC, ETH\n⚠️ Alto riesgo",
+            "🪙 *Binance*\n\n"
+            "💰 Compra BTC, ETH\n📊 Trading\n\n"
+            "⚠️ Riesgo alto",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.binance.com")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
     elif data == "app_bitso":
         await query.edit_message_text(
-            "💰 Bitso\nCripto fácil",
+            "💰 *Bitso*\n\n"
+            "✔️ Cripto fácil\n✔️ Ideal principiantes",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://bitso.com")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
     elif data == "app_bybit":
         await query.edit_message_text(
-            "📊 Bybit\nTrading avanzado",
+            "📊 *Bybit*\n\n"
+            "✔️ Trading avanzado\n⚠️ Alto riesgo",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.bybit.com")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
     # =========================
@@ -201,7 +231,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]))
 
     elif data == "apps_top":
-        await query.edit_message_text("Apps:", reply_markup=InlineKeyboardMarkup([
+        await query.edit_message_text("Apps para ganar dinero:", reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("Atlas Earth", callback_data="app_atlas")],
             [InlineKeyboardButton("Mode", callback_data="app_mode")],
             [InlineKeyboardButton("Google Rewards", callback_data="app_google")],
@@ -211,13 +241,64 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🔙", callback_data="ganar")]
         ]))
 
+    elif data == "app_atlas":
+        await query.edit_message_text(
+            "🌍 *Atlas Earth*\n\nTerrenos virtuales que generan renta",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Play Store", url="https://play.google.com/store/search?q=atlas+earth&c=apps")],
+                [InlineKeyboardButton("🔙", callback_data="apps_top")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_mode":
+        await query.edit_message_text(
+            "🎧 *Mode*\n\nGana escuchando música",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Play Store", url="https://play.google.com/store/apps/details?id=com.currentmusic")],
+                [InlineKeyboardButton("🔙", callback_data="apps_top")]
+            ]),
+            parse_mode="Markdown"
+        )
+
     elif data == "app_google":
         await query.edit_message_text(
-            "🧠 Encuestas pagadas",
+            "🧠 *Google Rewards*\n\nEncuestas pagadas",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Descargar", url="https://play.google.com/store/apps/details?id=com.google.android.apps.paidtasks")],
+                [InlineKeyboardButton("📲 Play Store", url="https://play.google.com/store/apps/details?id=com.google.android.apps.paidtasks")],
                 [InlineKeyboardButton("🔙", callback_data="apps_top")]
-            ])
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_view":
+        await query.edit_message_text(
+            "📊 *Viewpoints*\n\nEncuestas de Meta",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://viewpoints.fb.com")],
+                [InlineKeyboardButton("🔙", callback_data="apps_top")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_nice":
+        await query.edit_message_text(
+            "🎁 *Nicequest*\n\nGana premios por encuestas",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.nicequest.com")],
+                [InlineKeyboardButton("🔙", callback_data="apps_top")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_animal":
+        await query.edit_message_text(
+            "🐾 *Animal Merge*\n\nJuego con recompensas",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Play Store", url="https://play.google.com/store/search?q=animal+merge&c=apps")],
+                [InlineKeyboardButton("🔙", callback_data="apps_top")]
+            ]),
+            parse_mode="Markdown"
         )
 
     # =========================
@@ -225,13 +306,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # =========================
     elif data == "asesor":
         await query.edit_message_text(
-            "🧠 Asesor:\n\n"
-            "Nuevo → Nu o CETES\n"
-            "Intermedio → GBM\n"
-            "Avanzado → Cripto",
+            "🧠 *Asesor financiero*\n\n"
+            "👶 Nuevo → Nu / CETES\n"
+            "📈 Intermedio → GBM\n"
+            "🔥 Avanzado → Cripto",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔙", callback_data="menu")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
     elif data == "menu":
@@ -244,7 +326,7 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
-    print("🔥 BOT ACTIVO")
+    print("🔥 INVESTIA PRO ACTIVO")
     app.run_polling()
 
 if __name__ == "__main__":
