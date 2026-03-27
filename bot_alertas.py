@@ -44,8 +44,8 @@ def main_menu():
 # START
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
     users = load_users()
+    user = update.effective_user
 
     if str(user.id) not in users:
         users[str(user.id)] = {
@@ -57,7 +57,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_users(users)
 
     await update.message.reply_text(
-        f"Hola {user.first_name} 👋\nBienvenido a *Investia Pro* 💸\n\nSelecciona una opción:",
+        "Hola 👋\nSoy *Investia Pro* 💸\n\nSelecciona una opción:",
         reply_markup=main_menu(),
         parse_mode="Markdown"
     )
@@ -196,19 +196,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Menú principal 👇", reply_markup=main_menu())
 
 # =========================
-# MAIN (FIX CONFLICT)
+# MAIN (CORREGIDO)
 # =========================
-async def main():
+def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # 🔥 SOLUCIÓN ERROR CONFLICT
-    await app.bot.delete_webhook(drop_pending_updates=True)
+    # 🔥 limpiar conflictos
+    asyncio.get_event_loop().run_until_complete(
+        app.bot.delete_webhook(drop_pending_updates=True)
+    )
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
 
     print("🔥 Investia Pro activo")
-    await app.run_polling()
+    app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
+     
