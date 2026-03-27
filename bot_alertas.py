@@ -14,20 +14,30 @@ from telegram.ext import (
 
 TOKEN = os.getenv("BOT_TOKEN")
 
-# =========================
-# 📁 BASE DE DATOS SIMPLE
-# =========================
 DB_FILE = "users.json"
 
+# =========================
+# 📁 BASE DE DATOS SEGURA
+# =========================
 def load_users():
     if not os.path.exists(DB_FILE):
         return {}
-    with open(DB_FILE, "r") as f:
-        return json.load(f)
+
+    try:
+        with open(DB_FILE, "r") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+            return {}
+    except:
+        return {}
 
 def save_users(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+    try:
+        with open(DB_FILE, "w") as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print("Error guardando usuarios:", e)
 
 # =========================
 # 📱 MENÚ PRINCIPAL
@@ -72,6 +82,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     users = load_users()
     user_id = str(query.from_user.id)
     data = query.data
+
+    # Seguridad extra (por si Railway borra datos)
+    if user_id not in users:
+        users[user_id] = {
+            "nombre": query.from_user.first_name,
+            "objetivo": None,
+            "riesgo": None,
+            "monto": None
+        }
 
     # =========================
     # AHORRO
@@ -175,7 +194,7 @@ Ahorro mensual: {perfil['monto']}
         )
 
 # =========================
-# 🧠 LÓGICA INTELIGENTE
+# 🧠 LÓGICA
 # =========================
 def generar_recomendacion(user):
     objetivo = user["objetivo"]
@@ -186,11 +205,11 @@ def generar_recomendacion(user):
 🚨 Fondo de emergencia
 
 Te recomiendo:
-- Guardar en cuenta segura
-- Apps como: Nu, MercadoPago
+- Nu
+- MercadoPago
 
-💡 Ideal: 3-6 meses de gastos
-Monto mensual: ${monto}
+💡 Ahorra 3-6 meses de gastos
+Monto: ${monto}
 """
 
     elif objetivo == "viaje":
@@ -198,10 +217,9 @@ Monto mensual: ${monto}
 ✈️ Ahorro para viaje
 
 Te recomiendo:
-- Cuenta digital con rendimiento
-- Separar dinero automático
+- Cuenta con rendimiento
+- Ahorro automático
 
-💡 Usa metas semanales
 Monto: ${monto}
 """
 
@@ -210,14 +228,13 @@ Monto: ${monto}
 🏠 Ahorro para casa
 
 Te recomiendo:
-- CETES o inversión segura
-- Ahorro constante
+- CETES
+- Inversión segura
 
-💡 Largo plazo = disciplina
 Monto: ${monto}
 """
 
-    return "Sigue explorando opciones 💡"
+    return "Sigue explorando 💡"
 
 def generar_inversion(user):
     riesgo = user["riesgo"]
@@ -226,34 +243,29 @@ def generar_inversion(user):
         return """
 🟢 Bajo riesgo
 
-Opciones:
 - CETES
 - Bonos
-- Fondos seguros
 
-✔️ Estable pero lento
+✔️ Seguro
 """
 
     elif riesgo == "medio":
         return """
 🟡 Riesgo medio
 
-Opciones:
 - ETFs
-- Fondos indexados
 
-✔️ Balance entre riesgo y ganancia
+✔️ Balance
 """
 
     elif riesgo == "alto":
         return """
 🔴 Alto riesgo
 
-Opciones:
-- Criptomonedas
+- Cripto
 - Acciones
 
-⚠️ Alta ganancia pero volátil
+⚠️ Volátil
 """
 
     return "Define tu perfil"
@@ -267,11 +279,10 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    print("Bot corriendo 🚀")
+    print("Bot en ejecución 🚀")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
 
-    
-
+  
