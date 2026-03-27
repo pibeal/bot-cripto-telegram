@@ -13,16 +13,14 @@ from telegram.ext import (
 )
 
 TOKEN = os.getenv("BOT_TOKEN")
-
 DB_FILE = "users.json"
 
 # =========================
-# 📁 BASE DE DATOS SEGURA
+# BASE DE DATOS SEGURA
 # =========================
 def load_users():
     if not os.path.exists(DB_FILE):
         return {}
-
     try:
         with open(DB_FILE, "r") as f:
             data = json.load(f)
@@ -37,21 +35,22 @@ def save_users(data):
         with open(DB_FILE, "w") as f:
             json.dump(data, f, indent=4)
     except Exception as e:
-        print("Error guardando usuarios:", e)
+        print("Error guardando:", e)
 
 # =========================
-# 📱 MENÚ PRINCIPAL
+# MENÚ PRINCIPAL
 # =========================
 def main_menu():
     keyboard = [
-        [InlineKeyboardButton("💰 Ahorrar", callback_data="ahorrar")],
-        [InlineKeyboardButton("📈 Invertir", callback_data="invertir")],
+        [InlineKeyboardButton("💰 Opciones de ahorro", callback_data="apps")],
+        [InlineKeyboardButton("📈 Opciones de inversión", callback_data="invert_apps")],
+        [InlineKeyboardButton("🧠 Asesor inteligente", callback_data="asesor")],
         [InlineKeyboardButton("👤 Mi perfil", callback_data="perfil")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 # =========================
-# 🚀 START
+# START
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -67,13 +66,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_users(users)
 
     await update.message.reply_text(
-        f"Hola {user.first_name} 👋\nSoy *Investia Pro*\n\n¿Qué quieres hacer hoy?",
-        reply_markup=main_menu(),
-        parse_mode="Markdown"
+        f"Hola {user.first_name} 👋\nSoy Investia Pro 💸\n\n¿Qué quieres hacer?",
+        reply_markup=main_menu()
     )
 
 # =========================
-# 🔘 BOTONES
+# BOTONES
 # =========================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -83,7 +81,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(query.from_user.id)
     data = query.data
 
-    # Seguridad extra (por si Railway borra datos)
     if user_id not in users:
         users[user_id] = {
             "nombre": query.from_user.first_name,
@@ -93,185 +90,112 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
 
     # =========================
-    # AHORRO
+    # APPS AHORRO (ORIGINAL)
     # =========================
-    if data == "ahorrar":
+    if data == "apps":
+        keyboard = [
+            [InlineKeyboardButton("Nu Bank", url="https://nu.com.mx")],
+            [InlineKeyboardButton("MercadoPago", url="https://www.mercadopago.com.mx")],
+            [InlineKeyboardButton("Hey Banco", url="https://heybanco.santander.com.mx/")],
+            [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+        ]
+
+        await query.edit_message_text(
+            "💰 Mejores apps para ahorrar:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    # =========================
+    # APPS INVERSIÓN (ORIGINAL)
+    # =========================
+    elif data == "invert_apps":
+        keyboard = [
+            [InlineKeyboardButton("CETES", url="https://www.cetesdirecto.com")],
+            [InlineKeyboardButton("GBM+", url="https://gbm.com")],
+            [InlineKeyboardButton("Binance", url="https://www.binance.com")],
+            [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+        ]
+
+        await query.edit_message_text(
+            "📈 Opciones para invertir:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    # =========================
+    # ASESOR (NUEVO)
+    # =========================
+    elif data == "asesor":
+        keyboard = [
+            [InlineKeyboardButton("💰 Ahorrar", callback_data="ahorrar")],
+            [InlineKeyboardButton("📈 Invertir", callback_data="invertir")],
+            [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+        ]
+
+        await query.edit_message_text(
+            "🧠 Asesor financiero\n¿Qué quieres hacer?",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    # FLUJO ASESOR
+    elif data == "ahorrar":
         keyboard = [
             [InlineKeyboardButton("🚨 Emergencia", callback_data="obj_emergencia")],
             [InlineKeyboardButton("✈️ Viaje", callback_data="obj_viaje")],
             [InlineKeyboardButton("🏠 Casa", callback_data="obj_casa")],
             [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
         ]
-        await query.edit_message_text(
-            "¿Para qué quieres ahorrar?",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        await query.edit_message_text("¿Para qué quieres ahorrar?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("obj_"):
-        objetivo = data.split("_")[1]
-        users[user_id]["objetivo"] = objetivo
+        users[user_id]["objetivo"] = data.split("_")[1]
         save_users(users)
 
         keyboard = [
-            [InlineKeyboardButton("$500 - $1000", callback_data="monto_1000")],
-            [InlineKeyboardButton("$1000 - $5000", callback_data="monto_5000")],
-            [InlineKeyboardButton("$5000+", callback_data="monto_10000")],
-            [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+            [InlineKeyboardButton("$500-$1000", callback_data="monto_1000")],
+            [InlineKeyboardButton("$1000-$5000", callback_data="monto_5000")],
+            [InlineKeyboardButton("$5000+", callback_data="monto_10000")]
         ]
-
-        await query.edit_message_text(
-            "¿Cuánto puedes ahorrar al mes?",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        await query.edit_message_text("¿Cuánto ahorrarás al mes?", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("monto_"):
-        monto = data.split("_")[1]
-        users[user_id]["monto"] = monto
+        users[user_id]["monto"] = data.split("_")[1]
         save_users(users)
 
-        recomendacion = generar_recomendacion(users[user_id])
-
         await query.edit_message_text(
-            recomendacion,
+            "✅ Recomendación:\nUsa Nu o CETES según tu objetivo 💡",
             reply_markup=main_menu()
         )
 
-    # =========================
-    # INVERTIR
-    # =========================
     elif data == "invertir":
         keyboard = [
-            [InlineKeyboardButton("🟢 Bajo riesgo", callback_data="riesgo_bajo")],
-            [InlineKeyboardButton("🟡 Medio riesgo", callback_data="riesgo_medio")],
-            [InlineKeyboardButton("🔴 Alto riesgo", callback_data="riesgo_alto")],
-            [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+            [InlineKeyboardButton("🟢 Bajo", callback_data="riesgo_bajo")],
+            [InlineKeyboardButton("🟡 Medio", callback_data="riesgo_medio")],
+            [InlineKeyboardButton("🔴 Alto", callback_data="riesgo_alto")]
         ]
-
-        await query.edit_message_text(
-            "¿Qué nivel de riesgo prefieres?",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        await query.edit_message_text("Nivel de riesgo:", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("riesgo_"):
-        riesgo = data.split("_")[1]
-        users[user_id]["riesgo"] = riesgo
+        users[user_id]["riesgo"] = data.split("_")[1]
         save_users(users)
 
-        texto = generar_inversion(users[user_id])
-
         await query.edit_message_text(
-            texto,
+            "📊 Recomendación:\nEmpieza con GBM o Binance según riesgo",
             reply_markup=main_menu()
         )
 
-    # =========================
     # PERFIL
-    # =========================
     elif data == "perfil":
         perfil = users[user_id]
-
-        texto = f"""
-👤 *Tu perfil*
-
-Objetivo: {perfil['objetivo']}
-Riesgo: {perfil['riesgo']}
-Ahorro mensual: {perfil['monto']}
-"""
-
         await query.edit_message_text(
-            texto,
-            reply_markup=main_menu(),
-            parse_mode="Markdown"
-        )
-
-    # =========================
-    # MENÚ
-    # =========================
-    elif data == "menu":
-        await query.edit_message_text(
-            "Menú principal 👇",
+            f"👤 Perfil\nObjetivo: {perfil['objetivo']}\nRiesgo: {perfil['riesgo']}\nMonto: {perfil['monto']}",
             reply_markup=main_menu()
         )
 
-# =========================
-# 🧠 LÓGICA
-# =========================
-def generar_recomendacion(user):
-    objetivo = user["objetivo"]
-    monto = user["monto"]
-
-    if objetivo == "emergencia":
-        return f"""
-🚨 Fondo de emergencia
-
-Te recomiendo:
-- Nu
-- MercadoPago
-
-💡 Ahorra 3-6 meses de gastos
-Monto: ${monto}
-"""
-
-    elif objetivo == "viaje":
-        return f"""
-✈️ Ahorro para viaje
-
-Te recomiendo:
-- Cuenta con rendimiento
-- Ahorro automático
-
-Monto: ${monto}
-"""
-
-    elif objetivo == "casa":
-        return f"""
-🏠 Ahorro para casa
-
-Te recomiendo:
-- CETES
-- Inversión segura
-
-Monto: ${monto}
-"""
-
-    return "Sigue explorando 💡"
-
-def generar_inversion(user):
-    riesgo = user["riesgo"]
-
-    if riesgo == "bajo":
-        return """
-🟢 Bajo riesgo
-
-- CETES
-- Bonos
-
-✔️ Seguro
-"""
-
-    elif riesgo == "medio":
-        return """
-🟡 Riesgo medio
-
-- ETFs
-
-✔️ Balance
-"""
-
-    elif riesgo == "alto":
-        return """
-🔴 Alto riesgo
-
-- Cripto
-- Acciones
-
-⚠️ Volátil
-"""
-
-    return "Define tu perfil"
+    elif data == "menu":
+        await query.edit_message_text("Menú principal 👇", reply_markup=main_menu())
 
 # =========================
-# ▶️ MAIN
+# MAIN
 # =========================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
@@ -279,10 +203,10 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    print("Bot en ejecución 🚀")
+    print("Bot corriendo 🚀")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
-
+   
   
