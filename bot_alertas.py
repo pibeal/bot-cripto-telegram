@@ -8,7 +8,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 DB_FILE = "users.json"
 
 # =========================
-# BASE DE DATOS
+# DB
 # =========================
 def load_users():
     if not os.path.exists(DB_FILE):
@@ -21,14 +21,11 @@ def load_users():
         return {}
 
 def save_users(data):
-    try:
-        with open(DB_FILE, "w") as f:
-            json.dump(data, f, indent=4)
-    except:
-        pass
+    with open(DB_FILE, "w") as f:
+        json.dump(data, f, indent=4)
 
 # =========================
-# MENÚ PRINCIPAL
+# MENU
 # =========================
 def main_menu():
     return InlineKeyboardMarkup([
@@ -37,25 +34,13 @@ def main_menu():
         [InlineKeyboardButton("🪙 Cripto", callback_data="cripto")],
         [InlineKeyboardButton("💸 Ganar dinero", callback_data="ganar")],
         [InlineKeyboardButton("🧠 Asesor financiero", callback_data="asesor")],
-        [InlineKeyboardButton("👤 Mi perfil", callback_data="perfil")]
+        [InlineKeyboardButton("👤 Perfil", callback_data="perfil")]
     ])
 
 # =========================
 # START
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    users = load_users()
-    user = update.effective_user
-
-    if str(user.id) not in users:
-        users[str(user.id)] = {
-            "nombre": user.first_name,
-            "objetivo": None,
-            "riesgo": None,
-            "monto": None
-        }
-        save_users(users)
-
     await update.message.reply_text(
         "Hola 👋\nSoy *Investia Pro* 💸\n\nSelecciona una opción:",
         reply_markup=main_menu(),
@@ -63,7 +48,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # =========================
-# BOTONES
+# HANDLER
 # =========================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -74,134 +59,142 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # AHORRO
     # =========================
     if data == "ahorro":
-        keyboard = [
-            [InlineKeyboardButton("🥇 Nu", callback_data="app_nu")],
+        await query.edit_message_text("💰 Ahorro:", reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("Nu", callback_data="app_nu")],
             [InlineKeyboardButton("Klar", callback_data="app_klar")],
             [InlineKeyboardButton("Ualá", callback_data="app_uala")],
             [InlineKeyboardButton("MercadoPago", callback_data="app_mp")],
             [InlineKeyboardButton("Hey Banco", callback_data="app_hey")],
             [InlineKeyboardButton("CETES", callback_data="app_cetes")],
             [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
-        ]
-        await query.edit_message_text("💰 Opciones de ahorro:", reply_markup=InlineKeyboardMarkup(keyboard))
+        ]))
 
-    elif data == "app_nu":
+    elif data == "app_uala":
         await query.edit_message_text(
-            "🥇 *Nu Bank*\n\n💰 Alto rendimiento\n📊 Riesgo bajo\n\n✔️ Sin comisiones\n✔️ Rendimientos diarios\n\n💡 Ideal para empezar",
+            "💳 Ualá\nCuenta digital sin comisiones",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir a Nu", url="https://nu.com.mx")],
-                [InlineKeyboardButton("🔙 Volver", callback_data="ahorro")]
-            ]),
-            parse_mode="Markdown"
-        )
-
-    elif data == "app_klar":
-        await query.edit_message_text(
-            "💳 *Klar*\n\n💰 Rendimiento medio\n📊 Riesgo bajo\n\n✔️ Cuenta digital\n✔️ Tarjeta incluida",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir a Klar", url="https://www.klar.mx")],
-                [InlineKeyboardButton("🔙 Volver", callback_data="ahorro")]
-            ]),
-            parse_mode="Markdown"
-        )
-
-    elif data == "app_mp":
-        await query.edit_message_text(
-            "💰 *MercadoPago*\n\n✔️ Rendimientos automáticos\n✔️ Dinero disponible\n\n💡 Ideal para ahorro flexible",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir a MercadoPago", url="https://www.mercadopago.com.mx")],
+                [InlineKeyboardButton("📲 Descargar", url="https://www.uala.mx")],
                 [InlineKeyboardButton("🔙 Volver", callback_data="ahorro")]
             ])
         )
 
-    # =========================
-    # BOLSA
-    # =========================
-    elif data == "bolsa":
-        keyboard = [
-            [InlineKeyboardButton("🥇 GBM+", callback_data="app_gbm")],
-            [InlineKeyboardButton("eToro", callback_data="app_etoro")],
-            [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
-        ]
-        await query.edit_message_text("📈 Inversión en bolsa:", reply_markup=InlineKeyboardMarkup(keyboard))
-
-    elif data == "app_gbm":
+    elif data == "app_hey":
         await query.edit_message_text(
-            "🥇 *GBM+*\n\n📈 Acciones y ETFs\n💰 Rendimiento variable\n\n💡 Ideal para invertir",
+            "🏦 Hey Banco\nCuenta con rendimiento",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir a GBM", url="https://gbm.com")],
-                [InlineKeyboardButton("🔙 Volver", callback_data="bolsa")]
-            ]),
-            parse_mode="Markdown"
+                [InlineKeyboardButton("📲 Descargar", url="https://www.heybanco.com")],
+                [InlineKeyboardButton("🔙 Volver", callback_data="ahorro")]
+            ])
         )
 
     # =========================
     # CRIPTO
     # =========================
     elif data == "cripto":
-        keyboard = [
-            [InlineKeyboardButton("🥇 Binance", callback_data="app_binance")],
+        await query.edit_message_text("🪙 Cripto:", reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("Bitso", callback_data="app_bitso")],
             [InlineKeyboardButton("Bybit", callback_data="app_bybit")],
             [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
-        ]
-        await query.edit_message_text("🪙 Criptomonedas:", reply_markup=InlineKeyboardMarkup(keyboard))
+        ]))
 
-    elif data == "app_binance":
+    elif data == "app_bitso":
         await query.edit_message_text(
-            "🥇 *Binance*\n\n💰 Trading cripto\n📊 Alto riesgo\n\n💡 Para usuarios avanzados",
+            "💰 Bitso\nCompra y vende cripto fácil",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir a Binance", url="https://www.binance.com")],
+                [InlineKeyboardButton("📲 Ir a Bitso", url="https://bitso.com")],
                 [InlineKeyboardButton("🔙 Volver", callback_data="cripto")]
-            ]),
-            parse_mode="Markdown"
+            ])
+        )
+
+    elif data == "app_bybit":
+        await query.edit_message_text(
+            "📊 Bybit\nTrading avanzado",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir a Bybit", url="https://www.bybit.com")],
+                [InlineKeyboardButton("🔙 Volver", callback_data="cripto")]
+            ])
         )
 
     # =========================
     # GANAR DINERO
     # =========================
     elif data == "ganar":
-        keyboard = [
-            [InlineKeyboardButton("⭐ Apps recomendadas", callback_data="apps_top")],
+        await query.edit_message_text("💸 Ganar dinero:", reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("Apps", callback_data="apps_top")],
             [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
-        ]
-        await query.edit_message_text("💸 Ganar dinero online:", reply_markup=InlineKeyboardMarkup(keyboard))
+        ]))
 
     elif data == "apps_top":
-        keyboard = [
+        await query.edit_message_text("Apps:", reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("Atlas Earth", callback_data="app_atlas")],
             [InlineKeyboardButton("Mode", callback_data="app_mode")],
-            [InlineKeyboardButton("Google Rewards", callback_data="app_google")],
             [InlineKeyboardButton("Viewpoints", callback_data="app_view")],
             [InlineKeyboardButton("Nicequest", callback_data="app_nice")],
-            [InlineKeyboardButton("Animal Merge", callback_data="app_animal")],
-            [InlineKeyboardButton("🔙 Volver", callback_data="ganar")]
-        ]
-        await query.edit_message_text("⭐ Apps confiables:", reply_markup=InlineKeyboardMarkup(keyboard))
+            [InlineKeyboardButton("🔙", callback_data="ganar")]
+        ]))
+
+    elif data == "app_atlas":
+        await query.edit_message_text(
+            "🌍 Atlas Earth\nGana con terrenos virtuales",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Descargar", url="https://www.atlasearth.com")],
+                [InlineKeyboardButton("🔙", callback_data="apps_top")]
+            ])
+        )
 
     elif data == "app_mode":
         await query.edit_message_text(
-            "🎧 *Mode App*\n\n💰 Gana escuchando música\n✔️ Ingreso pasivo",
+            "🎧 Mode\nGana escuchando música",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Descargar", url="https://www.modeapp.com")],
-                [InlineKeyboardButton("🔙 Volver", callback_data="apps_top")]
-            ]),
-            parse_mode="Markdown"
+                [InlineKeyboardButton("🔙", callback_data="apps_top")]
+            ])
+        )
+
+    elif data == "app_view":
+        await query.edit_message_text(
+            "📊 Viewpoints\nEncuestas pagadas",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://viewpoints.fb.com")],
+                [InlineKeyboardButton("🔙", callback_data="apps_top")]
+            ])
+        )
+
+    elif data == "app_nice":
+        await query.edit_message_text(
+            "🎁 Nicequest\nGana recompensas",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.nicequest.com")],
+                [InlineKeyboardButton("🔙", callback_data="apps_top")]
+            ])
         )
 
     # =========================
-    # MENÚ
+    # ASESOR (YA FUNCIONA)
+    # =========================
+    elif data == "asesor":
+        await query.edit_message_text(
+            "🧠 Asesor financiero\n\n"
+            "💡 Si eres principiante:\nEmpieza con Nu o CETES\n\n"
+            "📈 Si quieres invertir:\nUsa GBM\n\n"
+            "🪙 Si te gusta el riesgo:\nCripto (Binance)",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+            ])
+        )
+
+    # =========================
+    # MENU
     # =========================
     elif data == "menu":
-        await query.edit_message_text("Menú principal 👇", reply_markup=main_menu())
+        await query.edit_message_text("Menú 👇", reply_markup=main_menu())
 
 # =========================
-# MAIN (CORREGIDO)
+# MAIN
 # =========================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # 🔥 limpiar conflictos
     asyncio.get_event_loop().run_until_complete(
         app.bot.delete_webhook(drop_pending_updates=True)
     )
@@ -209,9 +202,10 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    print("🔥 Investia Pro activo")
+    print("🔥 BOT ACTIVO")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
+ 
      
