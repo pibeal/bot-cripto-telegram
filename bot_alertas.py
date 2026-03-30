@@ -225,7 +225,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "app_mode":
         await query.edit_message_text(
             formato_app("Mode","Escuchar música","Bajo","Global","Ingresos pasivos"),
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📲 Ir", url="https://play.google.com/store/apps/details?id=com.currentmusic")],[InlineKeyboardButton("🔙", callback_data="ganar")]]),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📲 Ir", url="https://play.google.com/store/apps/details?id=us.current.android")],[InlineKeyboardButton("🔙", callback_data="ganar")]]),
             parse_mode="Markdown"
         )
 
