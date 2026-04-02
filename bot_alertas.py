@@ -117,7 +117,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             formato_app("Nu Bank","Intereses diarios","Bajo","México","Empezar fácil","✔️ Sin comisiones"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir", url="https://nu.com.mx")],
+                [InlineKeyboardButton("📲 Ir", url="https://nu.com.mx/mgm/?id=RYg0YDZmlzJyPCGPbpqNXg&msg=06478&utm_channel=referral&utm_medium=other&utm_source=mgm")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=nu+bank+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
             ]),
@@ -242,7 +242,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             formato_app("Binance","Trading y staking","Alto","Global","Avanzados","⚠️ Volátil"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir", url="https://www.binance.com")],
+                [InlineKeyboardButton("📲 Ir", url="https://www.binance.com/es/referral/earn-together/refer2earn-usdc/claim?hl=es&ref=GRO_28502_HDMUZ&utm_source=referral_entrance")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=binance+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
@@ -251,9 +251,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_bitso":
         await query.edit_message_text(
-            formato_app("Bitso","Compra sencilla","Medio","México","Principiantes"),
+            formato_app("Bitso","Compra sencilla","Medio","México","Principiantes,usa el codigo: lhubr "),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir", url="https://bitso.com")],
+                [InlineKeyboardButton("📲 Ir", url="https://bitso.com/mx?adjust_referrer=adjust_reftag%3DcuMQSawvCZtH6")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bitso+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
