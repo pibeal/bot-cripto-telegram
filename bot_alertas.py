@@ -1,12 +1,21 @@
 import os
 import json
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 TOKEN = os.getenv("BOT_TOKEN")
 
 # =========================
-# TRACKING
+# LIMPIAR WEBHOOK (FIX ERROR LOOP)
+# =========================
+async def limpiar_webhook():
+    bot = Bot(TOKEN)
+    await bot.delete_webhook(drop_pending_updates=True)
+    await bot.close()
+
+# =========================
+# TRACKING CLICKS
 # =========================
 def guardar_click(opcion):
     try:
@@ -18,6 +27,22 @@ def guardar_click(opcion):
     data[opcion] = data.get(opcion, 0) + 1
 
     with open("stats.json", "w") as f:
+        json.dump(data, f)
+
+# =========================
+# TRACKING USUARIOS
+# =========================
+def guardar_usuario(user_id):
+    try:
+        with open("usuarios.json", "r") as f:
+            data = json.load(f)
+    except:
+        data = []
+
+    if user_id not in data:
+        data.append(user_id)
+
+    with open("usuarios.json", "w") as f:
         json.dump(data, f)
 
 # =========================
@@ -50,12 +75,12 @@ def main_menu():
 # START
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    guardar_usuario(user_id)
+
     await update.message.reply_text(
         "👋 *Bienvenido a Investia Pro*\n\n"
-        "💸 Empieza a ganar dinero desde hoy:\n\n"
-        "1️⃣ Sin riesgo → Nu\n"
-        "2️⃣ Intermedio → Bitso\n"
-        "3️⃣ Alto potencial → Binance\n\n"
+        "💸 Descubre las mejores formas de ahorrar, invertir y generar ingresos.\n\n"
         "⚠️ *No somos asesores financieros.*\n\n"
         "Selecciona una opción 👇",
         reply_markup=main_menu(),
@@ -63,26 +88,28 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # =========================
-# RESPUESTAS INTELIGENTES
+# STATS
 # =========================
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.lower()
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        with open("usuarios.json", "r") as f:
+            users = json.load(f)
+            total_users = len(users)
+    except:
+        total_users = 0
 
-    if "ganar dinero" in text:
-        await update.message.reply_text(
-            "💸 Estas son las mejores opciones 👇",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Ver opciones", callback_data="ganar")]
-            ])
-        )
+    try:
+        with open("stats.json", "r") as f:
+            clicks = json.load(f)
+    except:
+        clicks = {}
 
-    elif "invertir" in text:
-        await update.message.reply_text(
-            "📈 Empieza aquí 👇",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Ir a bolsa", callback_data="bolsa")]
-            ])
-        )
+    await update.message.reply_text(
+        f"📊 *Estadísticas del bot*\n\n"
+        f"👤 Usuarios: {total_users}\n"
+        f"📈 Clics:\n{clicks}",
+        parse_mode="Markdown"
+    )
 
 # =========================
 # HANDLER
@@ -94,18 +121,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     guardar_click(data)
 
-    # ===== MENÚ =====
-    if data == "menu":
-        await query.edit_message_text("📌 Menú principal 👇", reply_markup=main_menu())
-
-    # ===== TOP =====
-    elif data == "top":
+    # ⭐ TOP
+    if data == "top":
         await query.edit_message_text(
             "⭐ *Apps recomendadas*\n\nEmpieza aquí 👇",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔥 Binance (GANA DINERO)", callback_data="app_binance")],
-                [InlineKeyboardButton("💰 Nu Bank", callback_data="app_nu")],
-                [InlineKeyboardButton("🇲🇽 Bitso", callback_data="app_bitso")],
+                [InlineKeyboardButton("Nu", callback_data="app_nu")],
+                [InlineKeyboardButton("CETES", callback_data="app_cetes")],
+                [InlineKeyboardButton("GBM+", callback_data="app_gbm")],
+                [InlineKeyboardButton("Binance", callback_data="app_binance")],
                 [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
             ]),
             parse_mode="Markdown"
@@ -129,14 +153,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_nu":
         await query.edit_message_text(
-            "💰 *Nu Bank (AHORRO SEGURO)*\n\n"
-            "✔️ Sin comisiones\n"
-            "✔️ Intereses diarios\n"
-            "✔️ Fácil de usar\n\n"
-            "🎁 Beneficios por registrarte\n\n"
-            "👇 Crea tu cuenta GRATIS:",
+            formato_app("Nu Bank","Intereses diarios","Bajo","México","Empezar fácil","✔️ Sin comisiones"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💳 Abrir cuenta gratis", url="https://nu.com.mx/mgm/?id=RYg0YDZmlzJyPCGPbpqNXg&msg=06478&utm_channel=referral&utm_medium=other&utm_source=mgm")],
+                [InlineKeyboardButton("💳 Abrir cuenta (BONO)", url="https://nu.com.mx/mgm/?id=RYg0YDZmlzJyPCGPbpqNXg&msg=06478&utm_channel=referral&utm_medium=other&utm_source=mgm")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=nu+bank+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
             ]),
@@ -148,6 +167,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             formato_app("Klar","Ahorro con rendimiento","Bajo","México","Usuarios nuevos"),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.klar.mx")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=klar+app+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
             ]),
             parse_mode="Markdown"
@@ -158,6 +178,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             formato_app("Ualá","Cuenta digital","Bajo","México","Uso diario"),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.uala.mx")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=uala+app+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
             ]),
             parse_mode="Markdown"
@@ -168,6 +189,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             formato_app("MercadoPago","Rendimiento automático","Bajo","México","Ahorro flexible"),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.mercadopago.com.mx")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=mercadopago+rendimiento")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
             ]),
             parse_mode="Markdown"
@@ -178,6 +200,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             formato_app("Hey Banco","Ahorro digital","Bajo","México","Usuarios bancarios"),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.heybanco.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=hey+banco+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
             ]),
             parse_mode="Markdown"
@@ -185,9 +208,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_cetes":
         await query.edit_message_text(
-            formato_app("CETES","Intereses del gobierno","Muy bajo","México","Perfil conservador"),
+            formato_app("CETES","Intereses del gobierno","Muy bajo","México","Perfil conservador","✔️ Alta seguridad"),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.cetesdirecto.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=cetes+directo+como+invertir")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
             ]),
             parse_mode="Markdown"
@@ -198,8 +222,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             "🪙 *Cripto (alto riesgo)*",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔥 Binance (GANA DINERO)", callback_data="app_binance")],
-                [InlineKeyboardButton("🇲🇽 Bitso", callback_data="app_bitso")],
+                [InlineKeyboardButton("Binance ⭐", callback_data="app_binance")],
+                [InlineKeyboardButton("Bitso", callback_data="app_bitso")],
                 [InlineKeyboardButton("Bybit", callback_data="app_bybit")],
                 [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
             ]),
@@ -208,13 +232,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_binance":
         await query.edit_message_text(
-            "🔥 *Binance (RECOMENDADO)*\n\n"
-            "💰 Gana dinero con criptomonedas\n"
-            "📈 Trading + staking\n\n"
-            "🎁 Bonos disponibles al registrarte\n\n"
-            "👇 Crea tu cuenta GRATIS:",
+            formato_app("Binance","Trading y staking","Alto","Global","Avanzados","⚠️ Volátil"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🚀 Crear cuenta y ganar", url="https://www.binance.com/es/referral/earn-together/refer2earn-usdc/claim?hl=es&ref=GRO_28502_HDMUZ&utm_source=referral_entrance")],
+                [InlineKeyboardButton("🚀 Crear cuenta (BONO)", url="https://www.binance.com/es/referral/earn-together/refer2earn-usdc/claim?hl=es&ref=GRO_28502_HDMUZ&utm_source=referral_entrance")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=binance+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
             parse_mode="Markdown"
@@ -222,13 +243,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_bitso":
         await query.edit_message_text(
-            "🇲🇽 *Bitso (Fácil para empezar)*\n\n"
-            "💰 Compra criptomonedas en pesos\n"
-            "🎁 Gana dinero al registrarte\n\n"
-            "📌 Código: *lhubr*\n\n"
-            "👇 Empieza aquí:",
+            formato_app("Bitso","Compra sencilla","Medio","México","Principiantes"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💸 Registrarme y ganar", url="https://bitso.com/mx?adjust_referrer=adjust_reftag%3DcKzPOs3voLNkv")],
+                [InlineKeyboardButton("💸 Registrarme (BONO)", url="https://bitso.com/mx?adjust_referrer=adjust_reftag%3DcKzPOs3voLNkv")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bitso+como+usar")],
+                [InlineKeyboardButton("🔙", callback_data="cripto")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_bybit":
+        await query.edit_message_text(
+            formato_app("Bybit","Trading avanzado","Alto","Global","Expertos"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.bybit.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bybit+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
             parse_mode="Markdown"
@@ -239,7 +268,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             "💸 *Ganar dinero*",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Google Rewards", callback_data="app_google")],
+                [InlineKeyboardButton("Google Rewards ⭐", callback_data="app_google")],
+                [InlineKeyboardButton("Viewpoints", callback_data="app_view")],
+                [InlineKeyboardButton("Nicequest", callback_data="app_nice")],
+                [InlineKeyboardButton("Mode", callback_data="app_mode")],
+                [InlineKeyboardButton("Atlas Earth", callback_data="app_atlas")],
                 [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
             ]),
             parse_mode="Markdown"
@@ -249,7 +282,52 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             formato_app("Google Rewards","Encuestas","Muy bajo","Global","Cualquiera"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir", url="https://play.google.com")],
+                [InlineKeyboardButton("📲 Ir", url="https://play.google.com/store/apps/details?id=com.google.android.apps.paidtasks")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=google+rewards+como+funciona")],
+                [InlineKeyboardButton("🔙", callback_data="ganar")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_view":
+        await query.edit_message_text(
+            formato_app("Viewpoints","Encuestas","Muy bajo","Global","Casual"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://viewpoints.fb.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=viewpoints+meta")],
+                [InlineKeyboardButton("🔙", callback_data="ganar")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_nice":
+        await query.edit_message_text(
+            formato_app("Nicequest","Encuestas","Muy bajo","Global","Pacientes"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.nicequest.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=nicequest+como+funciona")],
+                [InlineKeyboardButton("🔙", callback_data="ganar")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_mode":
+        await query.edit_message_text(
+            formato_app("Mode","Escuchar música","Bajo","Global","Ingresos pasivos"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://play.google.com/store/apps/details?id=us.current.android")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=mode+earn+app")],
+                [InlineKeyboardButton("🔙", callback_data="ganar")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_atlas":
+        await query.edit_message_text(
+            formato_app("Atlas Earth","Renta virtual","Medio","Global","Curiosos"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://play.google.com/store/search?q=atlas+earth&c=apps")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=atlas+earth+como+funciona")],
                 [InlineKeyboardButton("🔙", callback_data="ganar")]
             ]),
             parse_mode="Markdown"
@@ -295,22 +373,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ])
         )
 
-# =========================
-# ERROR HANDLER
-# =========================
-async def error_handler(update, context):
-    print("❌ Error:", context.error)
+    elif data == "menu":
+        await query.edit_message_text("📌 Menú principal 👇", reply_markup=main_menu())
 
 # =========================
 # MAIN
 # =========================
 def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+    asyncio.run(limpiar_webhook())
 
+    app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_error_handler(error_handler)
 
     print("🔥 INVESTIA PRO MAX ACTIVO")
     app.run_polling(drop_pending_updates=True)
