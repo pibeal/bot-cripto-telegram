@@ -1,7 +1,7 @@
 import os
-import asyncio
 import json
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
+import asyncio
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -12,21 +12,6 @@ from telegram.ext import (
 )
 
 TOKEN = os.getenv("BOT_TOKEN")
-
-# =========================
-# LIMPIAR WEBHOOK (MEJORADO)
-# =========================
-async def limpiar():
-    try:
-        bot = Bot(TOKEN)
-        await bot.delete_webhook(drop_pending_updates=True)
-        await bot.close()
-        print("✅ Webhook limpio")
-    except Exception as e:
-        print("⚠️ Error limpiando webhook:", e)
-
-# Ejecutar limpieza correctamente
-asyncio.run(limpiar())
 
 # =========================
 # TRACKING
@@ -88,22 +73,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower()
 
-    if "ganar dinero" in text or "dinero rápido" in text:
+    if "ganar dinero" in text:
         await update.message.reply_text(
-            "💸 *Estas son las mejores opciones para ganar dinero 👇*",
+            "💸 Opciones para ganar dinero 👇",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("Ver opciones", callback_data="ganar")]
-            ]),
-            parse_mode="Markdown"
+            ])
         )
 
     elif "invertir" in text:
         await update.message.reply_text(
-            "📈 *Empieza a invertir aquí 👇*",
+            "📈 Empieza aquí 👇",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("Ir a bolsa", callback_data="bolsa")]
-            ]),
-            parse_mode="Markdown"
+            ])
         )
 
 # =========================
@@ -116,37 +99,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     guardar_click(data)
 
-    try:
-        # ⭐ TOP
-        if data == "top":
-            await query.edit_message_text(
-                "⭐ *Apps recomendadas*\n\nEmpieza aquí 👇",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Nu", callback_data="app_nu")],
-                    [InlineKeyboardButton("CETES", callback_data="app_cetes")],
-                    [InlineKeyboardButton("GBM+", callback_data="app_gbm")],
-                    [InlineKeyboardButton("Binance", callback_data="app_binance")],
-                    [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
-                ]),
-                parse_mode="Markdown"
-            )
+    if data == "menu":
+        await query.edit_message_text("📌 Menú principal 👇", reply_markup=main_menu())
 
-        elif data == "menu":
-            await query.edit_message_text(
-                "📌 Menú principal 👇",
-                reply_markup=main_menu()
-            )
-
-        # Puedes seguir usando TODO tu código aquí sin problema 👇
-
-    except Exception as e:
-        print("❌ Error en botón:", e)
+    elif data == "top":
+        await query.edit_message_text(
+            "⭐ Apps recomendadas",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Nu", callback_data="app_nu")],
+                [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+            ])
+        )
 
 # =========================
-# ERROR HANDLER GLOBAL
+# ERROR HANDLER
 # =========================
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    print(f"⚠️ Error global: {context.error}")
+async def error_handler(update, context):
+    print("❌ Error:", context.error)
 
 # =========================
 # MAIN
@@ -162,9 +131,8 @@ def main():
 
     app.add_error_handler(error_handler)
 
-    print("🔥 INVESTIA PRO MAX ACTIVO")
+    print("🔥 INVESTIA PRO ACTIVO")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
-
