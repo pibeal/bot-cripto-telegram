@@ -4,27 +4,6 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID", 0))
-
-# =========================
-# SISTEMA DE CONTEO
-# =========================
-def registrar_usuario(user_id):
-    try:
-        usuarios = set()
-        if os.path.exists("usuarios.txt"):
-            with open("usuarios.txt", "r") as f:
-                usuarios = set(line.strip() for line in f)
-        usuarios.add(str(user_id))
-        with open("usuarios.txt", "w") as f:
-            for uid in usuarios:
-                f.write(f"{uid}\n")
-    except: pass
-
-def obtener_conteo():
-    if not os.path.exists("usuarios.txt"): return 0
-    with open("usuarios.txt", "r") as f:
-        return len(f.readlines())
 
 # =========================
 # LIMPIAR WEBHOOK
@@ -117,7 +96,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             formato_app("Nu Bank","Intereses diarios","Bajo","México","Empezar fácil","✔️ Sin comisiones"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir", url="https://nu.com.mx/mgm/?id=RYg0YDZmlzJyPCGPbpqNXg&msg=06478&utm_channel=referral&utm_medium=other&utm_source=mgm")],
+                [InlineKeyboardButton("📲 Ir", url="https://nu.com.mx")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=nu+bank+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
             ]),
@@ -242,7 +221,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             formato_app("Binance","Trading y staking","Alto","Global","Avanzados","⚠️ Volátil"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir", url="https://www.binance.com/es/referral/earn-together/refer2earn-usdc/claim?hl=es&ref=GRO_28502_HDMUZ&utm_source=referral_entrance")],
+                [InlineKeyboardButton("📲 Ir", url="https://www.binance.com")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=binance+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
@@ -251,9 +230,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_bitso":
         await query.edit_message_text(
-            formato_app("Bitso","Compra sencilla","Medio","México","Principiantes,usa el codigo: lhubr "),
+            formato_app("Bitso","Compra sencilla","Medio","México","Principiantes"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir", url="https://bitso.com/mx?adjust_referrer=adjust_reftag%3DcuMQSawvCZtH6")],
+                [InlineKeyboardButton("📲 Ir", url="https://bitso.com")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bitso+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
