@@ -4,12 +4,14 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID", 0)) # Se configura en Railway
+# Variable de entorno en Railway para tu ID de Telegram
+ADMIN_ID = int(os.getenv("ADMIN_ID", 0)) 
 
 # =========================
-# MEJORA: REGISTRO DE USUARIOS
+# SISTEMA DE CONTEO (TXTS)
 # =========================
 def registrar_usuario(user_id):
+    """Guarda el ID del usuario para conteo de personas reales."""
     try:
         usuarios = set()
         if os.path.exists("usuarios.txt"):
@@ -22,6 +24,7 @@ def registrar_usuario(user_id):
     except: pass
 
 def obtener_conteo():
+    """Retorna el número de personas registradas."""
     if not os.path.exists("usuarios.txt"): return 0
     with open("usuarios.txt", "r") as f:
         return len(f.readlines())
@@ -36,7 +39,8 @@ async def limpiar():
         await bot.close()
     except: pass
 
-# Para evitar conflictos en Railway, no siempre es necesario ejecutar limpiar() aquí.
+# En Railway esto puede dar conflictos si se ejecuta en cada reinicio, 
+# se recomienda dejar que run_polling maneje la conexión.
 # asyncio.get_event_loop().run_until_complete(limpiar())
 
 # =========================
@@ -69,7 +73,7 @@ def main_menu():
 # START
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    registrar_usuario(update.effective_user.id) # Registro de visita
+    registrar_usuario(update.effective_user.id) # REGISTRAR PERSONA
     await update.message.reply_text(
         "👋 *Bienvenido a Investia Pro*\n\n"
         "💸 Descubre las mejores formas de ahorrar, invertir y generar ingresos.\n\n"
@@ -83,6 +87,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # COMANDO ADMIN
 # =========================
 async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Comando para que veas el conteo en Railway."""
     if update.effective_user.id == ADMIN_ID:
         total = obtener_conteo()
         await update.message.reply_text(f"📊 *Estadísticas*\n\nUsuarios totales: `{total}`", parse_mode="Markdown")
@@ -126,7 +131,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif data == "app_nu":
-        # LINK DE REFERIDO NU
+        # TU LINK DE REFERIDO NU
         url_nu = "https://nu.com.mx"
         await query.edit_message_text(
             formato_app("Nu Bank","Intereses diarios","Bajo","México","Empezar fácil","✔️ Sin comisiones"),
@@ -219,7 +224,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_kuspit":
         await query.edit_message_text(
-            formato_app("Kuspit","Simulador y acciones","Bajo","México","Principiantes"),
+            formato_app("Kuspit","Acciones y aprendizaje","Medio","México","Principiantes"),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://www.kuspit.com")],
                 [InlineKeyboardButton("🔙", callback_data="bolsa")]
@@ -229,7 +234,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_bursanet":
         await query.edit_message_text(
-            formato_app("Bursanet","Trading profesional","Medio","México","Inversores con experiencia"),
+            formato_app("Bursanet","Trading","Medio","México","Avanzados"),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url="https://bursanet.mx")],
                 [InlineKeyboardButton("🔙", callback_data="bolsa")]
@@ -250,10 +255,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif data == "app_binance":
-        # LINK DE REFERIDO BINANCE
+        # TU LINK DE REFERIDO BINANCE
         url_bin = "https://binance.com"
         await query.edit_message_text(
-            formato_app("Binance","Trading y Staking","Alto","Global","Inversión activa","🎁 Bono USDC con este link."),
+            formato_app("Binance","Trading y Staking","Alto","Global","Activos","🎁 Bono USDC con este link."),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url=url_bin)],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://youtube.com")],
@@ -263,10 +268,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif data == "app_bitso":
-        # LINK DE REFERIDO BITSO
+        # TU LINK DE REFERIDO BITSO
         url_bit = "https://bitso.com"
         await query.edit_message_text(
-            formato_app("Bitso","Compra/Venta fácil","Medio","México/Latam","Principiantes","⚠️ Usa el código lhubr"),
+            formato_app("Bitso","Cripto fácil","Medio","México","Principiantes","⚠️ Usa el código lhubr"),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir", url=url_bit)],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://youtube.com")],
@@ -275,43 +280,32 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-    # ===== GANAR DINERO =====
+    # ===== OTROS =====
     elif data == "ganar":
         await query.edit_message_text(
             "💸 *Formas de ganar dinero*",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Explorar opciones", url="https://google.com")],
-                [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
-            ]),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data="menu")]]),
             parse_mode="Markdown"
         )
 
-    # ===== ASESOR =====
     elif data == "asesor":
         await query.edit_message_text(
-            "🧠 *Asesor de inversión*\n\nPróximamente disponible...",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
-            ]),
+            "🧠 *Asesor de inversión*\n\nPróximamente...",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data="menu")]]),
             parse_mode="Markdown"
         )
 
     elif data == "menu":
-        await query.edit_message_text(
-            "Selecciona una opción 👇",
-            reply_markup=main_menu(),
-            parse_mode="Markdown"
-        )
+        await query.edit_message_text("Selecciona una opción 👇", reply_markup=main_menu(), parse_mode="Markdown")
 
 # =========================
 # EJECUCIÓN
 # =========================
 if __name__ == "__main__":
     application = ApplicationBuilder().token(TOKEN).build()
-    
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("admin", admin))
     application.add_handler(CallbackQueryHandler(button_handler))
     
-    print("Bot activo...")
+    print("Bot activo en Railway.")
     application.run_polling(drop_pending_updates=True)
