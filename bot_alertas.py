@@ -228,8 +228,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-     elif data == "app_bitso":
-        # Asegúrate de que estas líneas tengan 8 espacios de sangría (o 2 tabs)
+        elif data == "app_bitso":
         mi_codigo = "lhubr"
         mi_link = "https://go.link"
 
@@ -249,7 +248,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]),
             parse_mode="Markdown"
         )
- 
+
   
 
 
