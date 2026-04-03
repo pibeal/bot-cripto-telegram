@@ -242,7 +242,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             text=mensaje_final,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir a Bitso", url=mi_link)],
+                [InlineKeyboardButton("📲 Ir a Bitso", url="https://bitso.com)],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://youtube.com")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
