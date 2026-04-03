@@ -1,256 +1,380 @@
-import os, requests, sqlite3, tempfile, re, base64, time
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
-from gtts import gTTS
+import os
+import asyncio
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+
+TOKEN = os.getenv("BOT_TOKEN")
 
 # =========================
-# CONFIG
+# LIMPIAR WEBHOOK
 # =========================
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+async def limpiar():
+    bot = Bot(TOKEN)
+    await bot.delete_webhook(drop_pending_updates=True)
+    await bot.close()
 
-if not TELEGRAM_TOKEN or not GROQ_API_KEY or not WEBHOOK_URL or not REPLICATE_API_TOKEN:
-    raise ValueError("Faltan variables de entorno")
-
-MODELO_TEXTO = "llama-3.3-70b-versatile"
-MODELO_VISION = "llama-3.2-11b-vision-preview"
-MAX_HISTORY = 10
+asyncio.get_event_loop().run_until_complete(limpiar())
 
 # =========================
-# DB
+# FORMATO PRO
 # =========================
-def init_db():
-    conn = sqlite3.connect("bot_pibeal.db")
-    cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS mensajes 
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                       user_id TEXT, role TEXT, content TEXT)''')
-    conn.commit()
-    conn.close()
-
-def save_to_db(user_id, role, content):
-    try:
-        conn = sqlite3.connect("bot_pibeal.db")
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO mensajes (user_id, role, content) VALUES (?, ?, ?)",
-                       (user_id, role, str(content)))
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print("DB error:", e)
-
-def get_history(user_id):
-    try:
-        conn = sqlite3.connect("bot_pibeal.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT role, content FROM mensajes WHERE user_id=? ORDER BY id DESC LIMIT ?",
-                       (user_id, MAX_HISTORY))
-        rows = cursor.fetchall()
-        conn.close()
-        return [{"role": r, "content": c} for r, c in reversed(rows)]
-    except Exception as e:
-        print("History error:", e)
-        return []
-
-def clear_history(user_id):
-    try:
-        conn = sqlite3.connect("bot_pibeal.db")
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM mensajes WHERE user_id=?", (user_id,))
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print("Clear error:", e)
-
-init_db()
+def formato_app(nombre, ganancia, riesgo, disponibilidad, ideal, extra=""):
+    return (
+        f"💰 *{nombre}*\n\n"
+        f"📈 Cómo ganas: {ganancia}\n"
+        f"⚠️ Riesgo: {riesgo}\n"
+        f"🌎 Disponible en: {disponibilidad}\n"
+        f"🎯 Ideal para: {ideal}\n\n"
+        f"{extra}"
+    )
 
 # =========================
-# IA
+# MENÚ PRINCIPAL
 # =========================
-def preguntar_ia(user_id: str, pregunta: str, image_bytes: bytes = None) -> str:
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-
-    modelo = MODELO_TEXTO
-    u_content = pregunta
-
-    if image_bytes:
-        modelo = MODELO_VISION
-        image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-        u_content = [
-            {"type": "text", "text": pregunta},
-            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-        ]
-
-    messages = [{"role": "system", "content": "Eres Pibeal IA PRO."}]
-    messages += get_history(user_id)
-    messages.append({"role": "user", "content": u_content})
-
-    try:
-        payload = {"model": modelo, "messages": messages, "temperature": 0.5}
-        r = requests.post(url, headers=headers, json=payload, timeout=25)
-
-        if r.status_code == 200:
-            return r.json()["choices"][0]["message"]["content"]
-        else:
-            print("Groq error:", r.text)
-
-    except Exception as e:
-        print("IA error:", e)
-
-    return "⚠️ Error con la IA."
+def main_menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("⭐ Recomendado", callback_data="top")],
+        [InlineKeyboardButton("💰 Ahorro", callback_data="ahorro")],
+        [InlineKeyboardButton("📈 Bolsa", callback_data="bolsa")],
+        [InlineKeyboardButton("🪙 Cripto", callback_data="cripto")],
+        [InlineKeyboardButton("💸 Ganar dinero", callback_data="ganar")],
+        [InlineKeyboardButton("🧠 Asesor", callback_data="asesor")]
+    ])
 
 # =========================
-# IMÁGENES (REPLICATE)
+# START
 # =========================
-if img:
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as f:
-            f.write(img)
-            temp_path = f.name
-
-        with open(temp_path, "rb") as photo:
-            await update.message.reply_photo(photo=photo)
-
-    except Exception as e:
-        print("Error enviando imagen:", e)
-        await update.message.reply_text("⚠️ No se pudo enviar la imagen.")
-
-    finally:
-        try:
-            os.remove(temp_path)
-        except:
-            pass
-else:
-    await update.message.reply_text("❌ Error generando imagen.")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👋 *Bienvenido a Investia Pro*\n\n"
+        "💸 Descubre las mejores formas de ahorrar, invertir y generar ingresos.\n\n"
+        "⚠️ *No somos asesores financieros.*\n\n"
+        "Selecciona una opción 👇",
+        reply_markup=main_menu(),
+        parse_mode="Markdown"
+    )
 
 # =========================
-# AUDIO
+# HANDLER
 # =========================
-audio = texto_a_voz(res)
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
 
-if audio:
-    try:
-        if os.path.exists(audio) and os.path.getsize(audio) > 0:
-            with open(audio, "rb") as f:
-                await update.message.reply_voice(voice=f)
-        else:
-            print("Audio vacío o no existe")
+    # ⭐ TOP
+    if data == "top":
+        await query.edit_message_text(
+            "⭐ *Apps recomendadas*\n\nEmpieza aquí 👇",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Nu", callback_data="app_nu")],
+                [InlineKeyboardButton("CETES", callback_data="app_cetes")],
+                [InlineKeyboardButton("GBM+", callback_data="app_gbm")],
+                [InlineKeyboardButton("Binance", callback_data="app_binance")],
+                [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+            ]),
+            parse_mode="Markdown"
+        )
 
-    except Exception as e:
-        print("Error enviando audio:", e)
+    # ===== AHORRO =====
+    elif data == "ahorro":
+        await query.edit_message_text(
+            "💰 *Ahorro (bajo riesgo)*",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Nu ⭐", callback_data="app_nu")],
+                [InlineKeyboardButton("Klar", callback_data="app_klar")],
+                [InlineKeyboardButton("Ualá", callback_data="app_uala")],
+                [InlineKeyboardButton("MercadoPago", callback_data="app_mp")],
+                [InlineKeyboardButton("Hey Banco", callback_data="app_hey")],
+                [InlineKeyboardButton("CETES ⭐", callback_data="app_cetes")],
+                [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+            ]),
+            parse_mode="Markdown"
+        )
 
-    finally:
-        try:
-            os.remove(audio)
-        except:
-            pass
+    elif data == "app_nu":
+        await query.edit_message_text(
+            formato_app("Nu Bank","Intereses diarios","Bajo","México","Empezar fácil","✔️ Sin comisiones"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://nu.com.mx")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=nu+bank+como+usar")],
+                [InlineKeyboardButton("🔙", callback_data="ahorro")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_klar":
+        await query.edit_message_text(
+            formato_app("Klar","Ahorro con rendimiento","Bajo","México","Usuarios nuevos"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.klar.mx")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=klar+app+como+usar")],
+                [InlineKeyboardButton("🔙", callback_data="ahorro")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_uala":
+        await query.edit_message_text(
+            formato_app("Ualá","Cuenta digital","Bajo","México","Uso diario"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.uala.mx")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=uala+app+como+usar")],
+                [InlineKeyboardButton("🔙", callback_data="ahorro")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_mp":
+        await query.edit_message_text(
+            formato_app("MercadoPago","Rendimiento automático","Bajo","México","Ahorro flexible"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.mercadopago.com.mx")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=mercadopago+rendimiento")],
+                [InlineKeyboardButton("🔙", callback_data="ahorro")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_hey":
+        await query.edit_message_text(
+            formato_app("Hey Banco","Ahorro digital","Bajo","México","Usuarios bancarios"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.heybanco.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=hey+banco+como+usar")],
+                [InlineKeyboardButton("🔙", callback_data="ahorro")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_cetes":
+        await query.edit_message_text(
+            formato_app("CETES","Intereses del gobierno","Muy bajo","México","Perfil conservador","✔️ Alta seguridad"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.cetesdirecto.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=cetes+directo+como+invertir")],
+                [InlineKeyboardButton("🔙", callback_data="ahorro")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    # ===== BOLSA =====
+    elif data == "bolsa":
+        await query.edit_message_text(
+            "📈 *Bolsa (riesgo medio)*",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("GBM+ ⭐", callback_data="app_gbm")],
+                [InlineKeyboardButton("Kuspit", callback_data="app_kuspit")],
+                [InlineKeyboardButton("Bursanet", callback_data="app_bursanet")],
+                [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_gbm":
+        await query.edit_message_text(
+            formato_app("GBM+","Acciones y ETFs","Medio","México","Inversión a largo plazo"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://gbm.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=gbm+como+invertir")],
+                [InlineKeyboardButton("🔙", callback_data="bolsa")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_kuspit":
+        await query.edit_message_text(
+            formato_app("Kuspit","Acciones","Medio","México","Aprender"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.kuspit.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=kuspit+como+usar")],
+                [InlineKeyboardButton("🔙", callback_data="bolsa")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_bursanet":
+        await query.edit_message_text(
+            formato_app("Bursanet","Fondos y acciones","Medio","México","Avanzados"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.bursanet.mx")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bursanet+como+usar")],
+                [InlineKeyboardButton("🔙", callback_data="bolsa")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    # ===== CRIPTO =====
+    elif data == "cripto":
+        await query.edit_message_text(
+            "🪙 *Cripto (alto riesgo)*",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Binance ⭐", callback_data="app_binance")],
+                [InlineKeyboardButton("Bitso", callback_data="app_bitso")],
+                [InlineKeyboardButton("Bybit", callback_data="app_bybit")],
+                [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_binance":
+        await query.edit_message_text(
+            formato_app("Binance","Trading y staking","Alto","Global","Avanzados","⚠️ Volátil"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.binance.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=binance+como+usar")],
+                [InlineKeyboardButton("🔙", callback_data="cripto")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_bitso":
+        await query.edit_message_text(
+            formato_app("Bitso","Compra sencilla","Medio","México","Principiantes"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://bitso.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bitso+como+usar")],
+                [InlineKeyboardButton("🔙", callback_data="cripto")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_bybit":
+        await query.edit_message_text(
+            formato_app("Bybit","Trading avanzado","Alto","Global","Expertos"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.bybit.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bybit+como+usar")],
+                [InlineKeyboardButton("🔙", callback_data="cripto")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    # ===== GANAR DINERO =====
+    elif data == "ganar":
+        await query.edit_message_text(
+            "💸 *Ganar dinero*",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Google Rewards ⭐", callback_data="app_google")],
+                [InlineKeyboardButton("Viewpoints", callback_data="app_view")],
+                [InlineKeyboardButton("Nicequest", callback_data="app_nice")],
+                [InlineKeyboardButton("Mode", callback_data="app_mode")],
+                [InlineKeyboardButton("Atlas Earth", callback_data="app_atlas")],
+                [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_google":
+        await query.edit_message_text(
+            formato_app("Google Rewards","Encuestas","Muy bajo","Global","Cualquiera"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://play.google.com/store/apps/details?id=com.google.android.apps.paidtasks")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=google+rewards+como+funciona")],
+                [InlineKeyboardButton("🔙", callback_data="ganar")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_view":
+        await query.edit_message_text(
+            formato_app("Viewpoints","Encuestas","Muy bajo","Global","Casual"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://viewpoints.fb.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=viewpoints+meta")],
+                [InlineKeyboardButton("🔙", callback_data="ganar")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_nice":
+        await query.edit_message_text(
+            formato_app("Nicequest","Encuestas","Muy bajo","Global","Pacientes"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://www.nicequest.com")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=nicequest+como+funciona")],
+                [InlineKeyboardButton("🔙", callback_data="ganar")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_mode":
+        await query.edit_message_text(
+            formato_app("Mode","Escuchar música","Bajo","Global","Ingresos pasivos"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://play.google.com/store/apps/details?id=us.current.android")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=mode+earn+app")],
+                [InlineKeyboardButton("🔙", callback_data="ganar")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "app_atlas":
+        await query.edit_message_text(
+            formato_app("Atlas Earth","Renta virtual","Medio","Global","Curiosos"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir", url="https://play.google.com/store/search?q=atlas+earth&c=apps")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=atlas+earth+como+funciona")],
+                [InlineKeyboardButton("🔙", callback_data="ganar")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    # ===== ASESOR =====
+    elif data == "asesor":
+        await query.edit_message_text(
+            "🧠 *Asesor Investia*\n\nSelecciona tu nivel 👇",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("👶 Nuevo", callback_data="nivel_nuevo")],
+                [InlineKeyboardButton("📈 Intermedio", callback_data="nivel_intermedio")],
+                [InlineKeyboardButton("🔥 Avanzado", callback_data="nivel_avanzado")],
+                [InlineKeyboardButton("🔙 Menú", callback_data="menu")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "nivel_nuevo":
+        await query.edit_message_text(
+            "👶 Empieza con bajo riesgo 👇",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Ir a ahorro", callback_data="ahorro")],
+                [InlineKeyboardButton("🔙", callback_data="asesor")]
+            ])
+        )
+
+    elif data == "nivel_intermedio":
+        await query.edit_message_text(
+            "📈 Nivel intermedio 👇",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Ir a bolsa", callback_data="bolsa")],
+                [InlineKeyboardButton("🔙", callback_data="asesor")]
+            ])
+        )
+
+    elif data == "nivel_avanzado":
+        await query.edit_message_text(
+            "🔥 Nivel avanzado 👇",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Ir a cripto", callback_data="cripto")],
+                [InlineKeyboardButton("🔙", callback_data="asesor")]
+            ])
+        )
+
+    elif data == "menu":
+        await query.edit_message_text("📌 Menú principal 👇", reply_markup=main_menu())
 
 # =========================
-# TELEGRAM
+# MAIN
 # =========================
-async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message:
-        return
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
 
-    user_id = str(update.message.from_user.id)
-    texto = update.message.text.strip() if update.message.text else ""
+    print("🔥 INVESTIA PRO MAX ACTIVO")
+    app.run_polling()
 
-    # RESET
-    if texto.lower() in ["/reset", "/start"]:
-        clear_history(user_id)
-        await update.message.reply_text("🧹 Memoria reiniciada.")
-        return
+if __name__ == "__main__":
+    main()
 
-    # FOTO
-    if update.message.photo:
-        await update.message.reply_text("👀 Analizando imagen...")
 
-        file = await update.message.photo[-1].get_file()
-        image_bytes = await file.download_as_bytearray()
-
-        save_to_db(user_id, "user", "imagen enviada")
-
-        res = preguntar_ia(user_id, "Analiza esta imagen.", image_bytes)
-
-        save_to_db(user_id, "assistant", res)
-
-        await update.message.reply_text(res)
-        return
-
-    # TEXTO
-    if texto:
-        if texto.startswith("/imagen "):
-            prompt = texto.replace("/imagen ", "")
-            await update.message.reply_text("🎨 Generando imagen...")
-
-            img = generar_imagen(prompt)
-
-            if img:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as f:
-                    f.write(img)
-                    temp_path = f.name
-
-                with open(temp_path, "rb") as photo:
-                    await update.message.reply_photo(photo=photo)
-
-                os.remove(temp_path)
-            else:
-                await update.message.reply_text("❌ Error generando imagen.")
-
-            return
-
-        # GUARDAR MEMORIA
-        save_to_db(user_id, "user", texto)
-
-        res = preguntar_ia(user_id, texto)
-
-        save_to_db(user_id, "assistant", res)
-
-        await update.message.reply_text(res)
-
-        # AUDIO
-        audio = texto_a_voz(res)
-        if audio:
-            try:
-                with open(audio, "rb") as f:
-                    await update.message.reply_voice(voice=f)
-            except Exception as e:
-                print("Audio error:", e)
-            finally:
-                try:
-                    os.remove(audio)
-                except:
-                    pass
-
-# =========================
-# FASTAPI
-# =========================
-bot_app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-bot_app.add_handler(MessageHandler(filters.ALL, responder))
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await bot_app.initialize()
-    await bot_app.start()
-    await bot_app.bot.set_webhook(f"{WEBHOOK_URL}/webhook")
-    print("✅ BOT PRO FINAL CON MEMORIA ACTIVA")
-    yield
-    await bot_app.shutdown()
-
-app = FastAPI(lifespan=lifespan)
-
-@app.post("/webhook")
-async def webhook(req: Request):
-    try:
-        data = await req.json()
-        update = Update.de_json(data, bot_app.bot)
-        await bot_app.process_update(update)
-    except Exception as e:
-        print("Webhook error:", e)
-
-    return {"ok": True}
