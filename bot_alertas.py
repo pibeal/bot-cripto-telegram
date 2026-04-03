@@ -96,7 +96,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             formato_app("Nu Bank","Intereses diarios","Bajo","México","Empezar fácil","✔️ Sin comisiones"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir"https://nu.com.mx/mgm/?id=RYg0YDZmlzJyPCGPbpqNXg&msg=06478&utm_channel=referral&utm_medium=other&utm_source=mgm")],
+                [InlineKeyboardButton("📲 Ir", url="https://nu.com.mx/mgm/?id=RYg0YDZmlzJyPCGPbpqNXg&msg=06478&utm_channel=referral&utm_medium=other&utm_source=mgm")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=nu+bank+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="ahorro")]
             ]),
