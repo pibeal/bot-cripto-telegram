@@ -228,28 +228,29 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-    elif data == "app_bitso":
-    # Tus datos de referido
-    mi_codigo = "lhubr"
-    mi_link = "https://go.link"
+     elif data == "app_bitso":
+        # Asegúrate de que estas líneas tengan 8 espacios de sangría (o 2 tabs)
+        mi_codigo = "lhubr"
+        mi_link = "https://go.link"
 
-    # Unimos tu formato base con el texto del código de regalo
-    mensaje_final = (
-        formato_app("Bitso", "Compra sencilla", "Medio", "México", "Principiantes") +
-        f"\n\n🎁 *¡Gana premios con mi referido!*\n"
-        f"Al registrarte, usa el código: `{mi_codigo}`\n"
-        "_(Toca el código para copiarlo)_"
-    )
+        mensaje_final = (
+            formato_app("Bitso", "Compra sencilla", "Medio", "México", "Principiantes") +
+            f"\n\n🎁 *¡Gana premios con mi referido!*\n"
+            f"Al registrarte, usa el código: `{mi_codigo}`\n"
+            "_(Toca el código para copiarlo)_"
+        )
 
-    await query.edit_message_text(
-        text=mensaje_final,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("📲 Ir a Bitso", url=mi_link)],
-            [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bitso+como+usar")],
-            [InlineKeyboardButton("🔙", callback_data="cripto")]
-        ]),
-        parse_mode="Markdown"
-    )
+        await query.edit_message_text(
+            text=mensaje_final,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📲 Ir a Bitso", url=mi_link)],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://youtube.com")],
+                [InlineKeyboardButton("🔙", callback_data="cripto")]
+            ]),
+            parse_mode="Markdown"
+        )
+ 
+  
 
 
     elif data == "app_bybit":
