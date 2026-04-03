@@ -243,7 +243,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=mensaje_final,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📲 Ir a Bitso", url="https://bitso.com")],
-                [InlineKeyboardButton("🎥 Ver tutorial", url="https://https://www.youtube.com/results?search_query=bitso+como+usar")],
+                [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bitso+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
             parse_mode="Markdown"
