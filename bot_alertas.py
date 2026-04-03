@@ -107,69 +107,48 @@ def preguntar_ia(user_id: str, pregunta: str, image_bytes: bytes = None) -> str:
 # =========================
 # IMÁGENES (REPLICATE)
 # =========================
-def generar_imagen(prompt: str):
+if img:
     try:
-        url = "https://api.replicate.com/v1/predictions"
-        headers = {
-            "Authorization": f"Token {REPLICATE_API_TOKEN}",
-            "Content-Type": "application/json"
-        }
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as f:
+            f.write(img)
+            temp_path = f.name
 
-        payload = {
-            "version": "db21e45c8c4b6d0f9c1e9f7e91b7a8c5f3e8b3c6d6b5f8a9d4e6c7b8a9f0e1d2",
-            "input": {"prompt": prompt}
-        }
-
-        r = requests.post(url, headers=headers, json=payload)
-
-        if r.status_code != 201:
-            print("Replicate error:", r.text)
-            return None
-
-        prediction = r.json()
-        get_url = prediction["urls"]["get"]
-
-        for _ in range(15):
-            time.sleep(2)
-            r2 = requests.get(get_url, headers=headers)
-            data = r2.json()
-            status = data.get("status")
-
-            print("Estado:", status)
-
-            if status == "succeeded":
-                img_url = data["output"][0]
-                return requests.get(img_url).content
-
-            elif status == "failed":
-                print("Imagen falló")
-                return None
-
-        print("Tiempo agotado")
-        return None
+        with open(temp_path, "rb") as photo:
+            await update.message.reply_photo(photo=photo)
 
     except Exception as e:
-        print("Imagen error:", e)
-        return None
+        print("Error enviando imagen:", e)
+        await update.message.reply_text("⚠️ No se pudo enviar la imagen.")
+
+    finally:
+        try:
+            os.remove(temp_path)
+        except:
+            pass
+else:
+    await update.message.reply_text("❌ Error generando imagen.")
 
 # =========================
 # AUDIO
 # =========================
-def texto_a_voz(texto: str):
+audio = texto_a_voz(res)
+
+if audio:
     try:
-        texto_limpio = re.sub(r"[*_`~]", "", texto)[:300]
-
-        temp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-        temp.close()
-
-        tts = gTTS(texto_limpio, lang="es")
-        tts.save(temp.name)
-
-        return temp.name
+        if os.path.exists(audio) and os.path.getsize(audio) > 0:
+            with open(audio, "rb") as f:
+                await update.message.reply_voice(voice=f)
+        else:
+            print("Audio vacío o no existe")
 
     except Exception as e:
-        print("TTS error:", e)
-        return None
+        print("Error enviando audio:", e)
+
+    finally:
+        try:
+            os.remove(audio)
+        except:
+            pass
 
 # =========================
 # TELEGRAM
