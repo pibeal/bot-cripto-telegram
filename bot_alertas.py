@@ -234,7 +234,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         mensaje_final = (
             formato_app("Bitso", "Compra sencilla", "Medio", "México", "Principiantes") +
-            f"\n\n🎁 *¡Gana premios con mi referido!*\n"
+            f"\n🎁 *¡Gana premios con mi referido!*\n"
             f"Al registrarte, usa el código: `{mi_codigo}`\n"
             "_(Toca el código para copiarlo)_"
         )
