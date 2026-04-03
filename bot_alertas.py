@@ -230,7 +230,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "app_bitso":
         mi_codigo = "lhubr"
-        mi_link = "https://go.link"
+        mi_link = "https://https://bitso.com"
 
         mensaje_final = (
             formato_app("Bitso", "Compra sencilla", "Medio", "México", "Principiantes") +
