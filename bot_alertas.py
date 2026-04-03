@@ -1,4 +1,4 @@
-import os, requests, sqlite3, tempfile, re, base64
+import os, requests, sqlite3, tempfile, re, base64, time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from telegram import Update
@@ -69,7 +69,7 @@ def clear_history(user_id):
 init_db()
 
 # =========================
-# IA TEXTO + VISIÓN
+# IA
 # =========================
 def preguntar_ia(user_id: str, pregunta: str, image_bytes: bytes = None) -> str:
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -105,7 +105,7 @@ def preguntar_ia(user_id: str, pregunta: str, image_bytes: bytes = None) -> str:
     return "⚠️ Error con la IA."
 
 # =========================
-# IMÁGENES (REPLICATE 🔥)
+# IMÁGENES (REPLICATE)
 # =========================
 def generar_imagen(prompt: str):
     try:
@@ -116,7 +116,7 @@ def generar_imagen(prompt: str):
         }
 
         payload = {
-            "version": "db21e45c8c4b6d0f9c1e9f7e91b7a8c5f3e8b3c6d6b5f8a9d4e6c7b8a9f0e1d2",  # SDXL
+            "version": "db21e45c8c4b6d0f9c1e9f7e91b7a8c5f3e8b3c6d6b5f8a9d4e6c7b8a9f0e1d2",
             "input": {"prompt": prompt}
         }
 
@@ -129,19 +129,24 @@ def generar_imagen(prompt: str):
         prediction = r.json()
         get_url = prediction["urls"]["get"]
 
-        # esperar resultado
-        while True:
+        for _ in range(15):
+            time.sleep(2)
             r2 = requests.get(get_url, headers=headers)
             data = r2.json()
+            status = data.get("status")
 
-            if data["status"] == "succeeded":
+            print("Estado:", status)
+
+            if status == "succeeded":
                 img_url = data["output"][0]
-                img_data = requests.get(img_url).content
-                return img_data
+                return requests.get(img_url).content
 
-            elif data["status"] == "failed":
+            elif status == "failed":
                 print("Imagen falló")
                 return None
+
+        print("Tiempo agotado")
+        return None
 
     except Exception as e:
         print("Imagen error:", e)
@@ -152,12 +157,18 @@ def generar_imagen(prompt: str):
 # =========================
 def texto_a_voz(texto: str):
     try:
-        texto_limpio = re.sub(r"[*_`~]", "", texto)[:400]
-        tts = gTTS(texto_limpio, lang="es")
+        texto_limpio = re.sub(r"[*_`~]", "", texto)[:300]
+
         temp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+        temp.close()
+
+        tts = gTTS(texto_limpio, lang="es")
         tts.save(temp.name)
+
         return temp.name
-    except:
+
+    except Exception as e:
+        print("TTS error:", e)
         return None
 
 # =========================
@@ -170,40 +181,72 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
     texto = update.message.text.strip() if update.message.text else ""
 
+    # RESET
     if texto.lower() in ["/reset", "/start"]:
         clear_history(user_id)
         await update.message.reply_text("🧹 Memoria reiniciada.")
         return
 
+    # FOTO
     if update.message.photo:
+        await update.message.reply_text("👀 Analizando imagen...")
+
         file = await update.message.photo[-1].get_file()
         image_bytes = await file.download_as_bytearray()
 
+        save_to_db(user_id, "user", "imagen enviada")
+
         res = preguntar_ia(user_id, "Analiza esta imagen.", image_bytes)
+
+        save_to_db(user_id, "assistant", res)
+
         await update.message.reply_text(res)
         return
 
+    # TEXTO
     if texto:
         if texto.startswith("/imagen "):
             prompt = texto.replace("/imagen ", "")
-            await update.message.reply_text("🎨 Generando imagen... (puede tardar unos segundos)")
+            await update.message.reply_text("🎨 Generando imagen...")
 
             img = generar_imagen(prompt)
 
             if img:
-                await update.message.reply_photo(img)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as f:
+                    f.write(img)
+                    temp_path = f.name
+
+                with open(temp_path, "rb") as photo:
+                    await update.message.reply_photo(photo=photo)
+
+                os.remove(temp_path)
             else:
                 await update.message.reply_text("❌ Error generando imagen.")
+
             return
 
+        # GUARDAR MEMORIA
+        save_to_db(user_id, "user", texto)
+
         res = preguntar_ia(user_id, texto)
+
+        save_to_db(user_id, "assistant", res)
+
         await update.message.reply_text(res)
 
+        # AUDIO
         audio = texto_a_voz(res)
         if audio:
-            with open(audio, "rb") as f:
-                await update.message.reply_voice(voice=f)
-            os.remove(audio)
+            try:
+                with open(audio, "rb") as f:
+                    await update.message.reply_voice(voice=f)
+            except Exception as e:
+                print("Audio error:", e)
+            finally:
+                try:
+                    os.remove(audio)
+                except:
+                    pass
 
 # =========================
 # FASTAPI
@@ -216,7 +259,7 @@ async def lifespan(app: FastAPI):
     await bot_app.initialize()
     await bot_app.start()
     await bot_app.bot.set_webhook(f"{WEBHOOK_URL}/webhook")
-    print("✅ Bot PRO con imágenes reales activo")
+    print("✅ BOT PRO FINAL CON MEMORIA ACTIVA")
     yield
     await bot_app.shutdown()
 
@@ -224,7 +267,11 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/webhook")
 async def webhook(req: Request):
-    data = await req.json()
-    update = Update.de_json(data, bot_app.bot)
-    await bot_app.process_update(update)
+    try:
+        data = await req.json()
+        update = Update.de_json(data, bot_app.bot)
+        await bot_app.process_update(update)
+    except Exception as e:
+        print("Webhook error:", e)
+
     return {"ok": True}
