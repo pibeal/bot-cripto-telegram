@@ -221,7 +221,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             formato_app("Binance","Trading y staking","Alto","Global","Avanzados","⚠️ Volátil"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir", url="https://www.binance.com/es/referral/earn-together/refer2earn-usdc/claim?hl=es&ref=GRO_28502_HDMUZ&utm_source=referral_entrance")],
+                [InlineKeyboardButton("📲 Ir a binance", url="https://www.binance.com/es/referral/earn-together/refer2earn-usdc/claim?hl=es&ref=GRO_28502_HDMUZ&utm_source=referral_entrance")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=binance+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
@@ -256,7 +256,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             formato_app("Bybit","Trading avanzado","Alto","Global","Expertos"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir", url="https://www.bybit.com")],
+                [InlineKeyboardButton("📲 Ir a bybit", url="https://www.bybit.com")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bybit+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
