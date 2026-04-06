@@ -8,12 +8,12 @@ TOKEN = os.getenv("BOT_TOKEN")
 # =========================
 # LIMPIAR WEBHOOK
 # =========================
-async def limpiar():
-    bot = Bot(TOKEN)
-    await bot.delete_webhook(drop_pending_updates=True)
-    await bot.close()
+#async def limpiar():
+#    bot = Bot(TOKEN)
+#    await bot.delete_webhook(drop_pending_updates=True)
+#    await bot.close()
 
-asyncio.get_event_loop().run_until_complete(limpiar())
+# asyncio.get_event_loop().run_until_complete(limpiar())
 
 # =========================
 # FORMATO PRO
@@ -221,7 +221,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             formato_app("Binance","Trading y staking","Alto","Global","Avanzados","⚠️ Volátil"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir a binance", url="https://www.binance.com/es/referral/earn-together/refer2earn-usdc/claim?hl=es&ref=GRO_28502_HDMUZ&utm_source=referral_entrance")],
+                [InlineKeyboardButton("📲 Ir", url="https://www.binance.com/es/referral/earn-together/refer2earn-usdc/claim?hl=es&ref=GRO_28502_HDMUZ&utm_source=referral_entrance")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=binance+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
@@ -229,34 +229,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif data == "app_bitso":
-        mi_codigo = "lhubr"
-        mi_link = "https://https://bitso.com"
-
-        mensaje_final = (
-            formato_app("Bitso", "Compra sencilla", "Medio", "México", "Principiantes") +
-            f"\n🎁 *¡Gana premios con mi referido!*\n"
-            f"Al registrarte, usa el código: `{mi_codigo}`\n"
-            "_(Toca el código para copiarlo)_"
-        )
-
         await query.edit_message_text(
-            text=mensaje_final,
+            formato_app("Bitso","Compra sencilla","Medio","México","Principiantes"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir a Bitso", url="https://bitso.com")],
+                [InlineKeyboardButton("📲 Ir", url="https://bitso.com")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bitso+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
             parse_mode="Markdown"
         )
 
-  
-
-
     elif data == "app_bybit":
         await query.edit_message_text(
             formato_app("Bybit","Trading avanzado","Alto","Global","Expertos"),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Ir a bybit", url="https://www.bybit.com")],
+                [InlineKeyboardButton("📲 Ir", url="https://www.bybit.com")],
                 [InlineKeyboardButton("🎥 Ver tutorial", url="https://www.youtube.com/results?search_query=bybit+como+usar")],
                 [InlineKeyboardButton("🔙", callback_data="cripto")]
             ]),
@@ -389,5 +376,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+  
+   
 
 
